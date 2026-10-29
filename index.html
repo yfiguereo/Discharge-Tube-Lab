@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discharge Tube Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a two-station lab bench. Left: the molecule builder (paper-white work surface).
+   Right: the spectrometer, a deliberately dark instrument screen in both themes so emission reads true. */
+:root{
+  --bg:#eceff4; --surface:#fbfcfe; --ink:#141923; --muted:#586174; --line:#d3d9e3; --grid:#dfe4ec;
+  --accent:#2747c9; --accent-ink:#ffffff; --accent-soft:#e2e8ff;
+  --ok:#17804a; --warn:#a35f00; --bad:#bb3434;
+  --atom-stroke:rgba(15,20,30,.45);
+  --scope:#0a0d14; --scope-2:#131a28; --scope-3:#1b2436; --scope-line:#273149; --scope-ink:#e3e8f3; --scope-muted:#8e99b0;
+  --scope-accent:#9fb4ff; --gold:#ffcf5a;
+  --font-display:'Archivo','Helvetica Neue',Arial,sans-serif;
+  --font-body:'Atkinson Hyperlegible','Segoe UI',Roboto,Arial,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0e121a; --surface:#161c27; --ink:#e5e9f1; --muted:#9ba5b9; --line:#2a3344; --grid:#222a39;
+  --accent:#8aa2ff; --accent-ink:#0b1022; --accent-soft:#1f2a4e;
+  --ok:#4cc483; --warn:#e7a443; --bad:#f07272; --atom-stroke:rgba(230,236,248,.55);
+  --scope:#070a10; --scope-2:#111724; --scope-3:#182033; --scope-line:#252f45; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0e121a; --surface:#161c27; --ink:#e5e9f1; --muted:#9ba5b9; --line:#2a3344; --grid:#222a39;
+  --accent:#8aa2ff; --accent-ink:#0b1022; --accent-soft:#1f2a4e;
+  --ok:#4cc483; --warn:#e7a443; --bad:#f07272; --atom-stroke:rgba(230,236,248,.55);
+  --scope:#070a10; --scope-2:#111724; --scope-3:#182033; --scope-line:#252f45; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1380px;margin:0 auto;padding-block:22px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance}
+h1{font-size:clamp(28px,4.2vw,44px);font-weight:800;font-stretch:118%;letter-spacing:-.01em;line-height:1.05}
+h2{font-size:18px;font-weight:700;font-stretch:112%}
+h3{font-size:13px;font-weight:700;font-stretch:110%;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.scope h3{color:var(--scope-muted)}
+.top{display:flex;flex-wrap:wrap;gap:12px 32px;align-items:end;justify-content:space-between;margin-bottom:18px}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+.lede{max-width:68ch;color:var(--muted);margin:8px 0 0}
+.formula-badge{font-family:var(--font-mono);font-size:12.5px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:6px 10px;white-space:nowrap}
+
+.bench{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px;align-items:start}
+@media (max-width:1000px){.bench{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.scope{background:var(--scope);color:var(--scope-ink);border-color:var(--scope-line)}
+.card-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.step{font-family:var(--font-mono);font-size:12px;color:var(--accent);margin-right:6px}
+.scope .step{color:var(--scope-accent)}
+
+select,button{font:inherit}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:7px 12px;font-size:14px;cursor:pointer;min-height:36px;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.scope .btn{background:var(--scope-2);color:var(--scope-ink);border-color:var(--scope-line)}
+.scope .btn:hover{border-color:var(--scope-accent)}
+.scope .btn.gold{background:var(--gold);color:#1a1405;border-color:var(--gold);font-weight:700}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.scope :focus-visible{outline-color:var(--scope-accent)}
+select.btn{padding-right:8px}
+
+.palette{display:flex;flex-wrap:wrap;gap:8px}
+.el-btn{appearance:none;border:none;background:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;width:50px;color:var(--ink)}
+.el-btn .ball{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:16px;border:1.5px solid var(--atom-stroke);box-shadow:inset -5px -6px 10px rgba(0,0,0,.18), inset 4px 4px 8px rgba(255,255,255,.25);transition:transform .12s}
+.el-btn:hover .ball{transform:translateY(-2px)}
+.el-btn .val{font-size:11px;color:var(--muted);font-family:var(--font-mono);white-space:nowrap}
+.tools{display:flex;flex-wrap:wrap;gap:6px}
+.canvas-wrap{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background-color:var(--surface);background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:22px 22px}
+#mol{display:block;width:100%;height:clamp(300px,48vh,470px);touch-action:none;user-select:none;-webkit-user-select:none}
+.toast{position:absolute;left:10px;right:10px;bottom:10px;background:var(--ink);color:var(--surface);border-radius:10px;padding:8px 12px;font-size:13.5px;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none}
+.toast.show{opacity:1;transform:none}
+.hint{font-size:13.5px;color:var(--muted);margin:0}
+.hint b{color:var(--ink)}
+.mini{display:flex;flex-direction:column;gap:4px}
+.mini canvas{width:100%;height:26px;border-radius:6px;display:block;background:#000}
+.mini span{font-size:12px;color:var(--muted);font-family:var(--font-mono)}
+.species{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.sp{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.sp .fml{font-family:var(--font-display);font-weight:700;font-size:22px;font-stretch:105%;grid-row:span 2;min-width:3ch}
+.sp .nm{font-weight:700}
+.sp .meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pill{font-size:11.5px;font-family:var(--font-mono);border-radius:999px;padding:1px 8px;border:1px solid currentColor;white-space:nowrap}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)} .pill.info{color:var(--accent)}
+.empty-note{color:var(--muted);font-size:14px;margin:0}
+
+/* spectrometer */
+.scope-top{display:grid;grid-template-columns:240px minmax(0,1fr);gap:14px;align-items:center}
+@media (max-width:620px){.scope-top{grid-template-columns:minmax(0,1fr)}}
+.tube{margin:0;display:flex;flex-direction:column;gap:4px}
+.tube svg{width:100%;height:auto;display:block}
+.tube figcaption{font-size:12px;color:var(--scope-muted);font-family:var(--font-mono)}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 16px}
+.ctl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ctl label,.ctl .lab{font-size:12.5px;color:var(--scope-muted);display:flex;justify-content:space-between;gap:8px}
+.ctl output{font-family:var(--font-mono);color:var(--scope-ink)}
+input[type=range]{width:100%;accent-color:var(--scope-accent)}
+.seg{display:inline-flex;border:1px solid var(--scope-line);border-radius:10px;overflow:hidden}
+.seg button{appearance:none;border:none;background:var(--scope-2);color:var(--scope-muted);padding:6px 10px;font-size:13px;cursor:pointer;min-height:32px}
+.seg button[aria-pressed=true]{background:var(--scope-3);color:var(--scope-ink);box-shadow:inset 0 -2px 0 var(--scope-accent)}
+.checks{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--scope-ink)}
+.checks label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.checks input{accent-color:var(--scope-accent)}
+.strip-wrap{display:flex;flex-direction:column;gap:4px}
+#strip{width:100%;height:54px;display:block;border-radius:8px;background:#000}
+.graph-wrap{position:relative}
+#graph{width:100%;height:280px;display:block;border-radius:10px;background:var(--scope-2);cursor:crosshair;touch-action:pan-y}
+@media (max-width:620px){#graph{height:240px}}
+.cap{font-size:12px;color:var(--scope-muted);font-family:var(--font-mono);margin:0}
+.mys{border:1px solid var(--gold);border-radius:12px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:rgba(255,207,90,.06)}
+.mys p{margin:0;flex:1 1 260px;font-size:14px}
+.mys .score{font-family:var(--font-mono);font-size:20px;color:var(--gold);font-weight:600}
+.mys .acts{display:flex;gap:6px;flex-wrap:wrap}
+.mys.win{border-color:#5fe0a0;background:rgba(95,224,160,.08)}
+
+.detail{border:1px solid var(--scope-line);border-radius:12px;background:var(--scope-2);padding:14px;display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:14px}
+@media (max-width:760px){.detail{grid-template-columns:minmax(0,1fr)}}
+.detail h4{margin:0 0 2px;font-family:var(--font-display);font-size:19px;font-stretch:108%;font-weight:700}
+.detail .sys{color:var(--scope-muted);font-size:13.5px;margin:0 0 10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px;margin:0}
+.kv dt{color:var(--scope-muted)}
+.kv dd{margin:0;font-family:var(--font-mono);font-size:13.5px;font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+.calc{margin-top:10px;font-family:var(--font-mono);font-size:12.5px;line-height:1.7;background:var(--scope);border:1px solid var(--scope-line);border-radius:8px;padding:8px 10px;overflow-x:auto;color:#cfd7e8}
+.calc .c{color:var(--scope-muted)}
+.why{font-size:14px;margin:10px 0 0;color:var(--scope-ink)}
+.bonds-cmp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.bc{font-family:var(--font-mono);font-size:12px;border:1px solid var(--scope-line);border-radius:999px;padding:2px 9px;color:var(--scope-muted)}
+.bc.yes{color:#ffd38a;border-color:#6d5a2f}
+.diag svg{width:100%;height:auto;display:block}
+.diag p{font-size:11.5px;color:var(--scope-muted);margin:4px 0 0;font-family:var(--font-mono)}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:middle;margin-right:6px;border:1px solid rgba(255,255,255,.25)}
+.two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}}
+.tbl{overflow-x:auto;margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{font-weight:400;text-align:left;color:var(--scope-muted);font-size:12px;padding:4px 8px;border-bottom:1px solid var(--scope-line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--scope-line);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.tr{white-space:normal;min-width:120px}
+td.num{font-family:var(--font-mono);text-align:right}
+tbody tr{cursor:pointer}
+tbody tr:hover,tbody tr.on{background:var(--scope-3)}
+.notes{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.notes b{color:#fff}
+
+.about{margin-top:16px}
+.about details{border-top:1px solid var(--line);padding-top:10px}
+.about details:first-of-type{border-top:none;padding-top:0}
+.about summary{cursor:pointer;font-family:var(--font-display);font-weight:700;font-size:17px;font-stretch:110%;padding:4px 0}
+.about .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px 28px;margin-top:6px}
+.about p,.about li{max-width:68ch;color:var(--ink)}
+.about ol{padding-left:20px}
+.about li{margin-bottom:8px}
+.src{font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">EMISSION SPECTROSCOPY · ATOMS → MOLECULES → LIGHT</p>
+      <h1>Discharge Tube Lab</h1>
+      <p class="lede">Build molecules from atoms, load them into a gas-discharge tube, and read the light they give off. Atoms emit sharp lines. Molecules emit bands. And the discharge itself breaks molecules into fragments that glow too.</p>
+    </div>
+    <div class="formula-badge">E = hc / λ &nbsp;·&nbsp; hc = 1239.84 eV·nm</div>
+  </header>
+
+  <main class="bench">
+    <section class="card" aria-labelledby="build-h">
+      <div class="card-head">
+        <h2 id="build-h"><span class="step">01</span>Build the gas</h2>
+        <select id="preset" class="btn" aria-label="Load a preset molecule or mixture"></select>
+      </div>
+      <div class="palette" id="palette" aria-label="Elements"></div>
+      <div class="tools">
+        <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
+        <button class="btn" id="fillBtn" title="Add hydrogens to every open bond">Fill with H</button>
+        <button class="btn" id="tidyBtn" title="Rearrange atoms neatly">Tidy</button>
+        <button class="btn" id="delBtn" disabled>Remove atom</button>
+        <button class="btn" id="clearBtn">Clear tube</button>
+      </div>
+      <div class="canvas-wrap">
+        <svg id="mol" role="application" aria-label="Molecule building area. Atoms and bonds are drawn here."></svg>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </div>
+      <p class="hint"><b>Tap an element</b> to drop an atom; it stays selected, so tapping more elements bonds them to it. <b>Tap two atoms</b> to bond them. <b>Tap a bond</b> to cycle single → double → triple → none. <b>Tap empty space</b> to start a new molecule; each separate molecule is another gas in the tube.</p>
+      <div class="mini"><canvas id="mini" aria-hidden="true"></canvas><span>Live spectrum · full readout in the spectrometer</span></div>
+      <h3>In the tube</h3>
+      <ul class="species" id="species"></ul>
+    </section>
+
+    <section class="card scope" aria-labelledby="scope-h">
+      <div class="card-head">
+        <h2 id="scope-h"><span class="step">02</span>Spectrometer</h2>
+        <button class="btn gold" id="mysteryBtn">Mystery tube</button>
+      </div>
+      <div class="mys" id="mysteryBar" hidden></div>
+      <div class="scope-top">
+        <figure class="tube">
+          <svg id="tube" viewBox="0 0 260 70" role="img" aria-label="Discharge tube glow color"></svg>
+          <figcaption id="tubeCap">Glow your eye would see</figcaption>
+        </figure>
+        <div class="controls">
+          <div class="ctl">
+            <label for="power">Discharge power <output id="powerOut"></output></label>
+            <input type="range" id="power" min="0" max="100" value="45">
+          </div>
+          <div class="ctl">
+            <label for="res">Spectrometer resolution <output id="resOut"></output></label>
+            <input type="range" id="res" min="0" max="100" value="55">
+          </div>
+          <div class="ctl">
+            <span class="lab">Wavelength range</span>
+            <div class="seg" role="group" aria-label="Wavelength range">
+              <button id="rangeFull" aria-pressed="true">200–900 nm</button>
+              <button id="rangeVis" aria-pressed="false">Visible only</button>
+            </div>
+          </div>
+          <div class="ctl">
+            <span class="lab">Overlays</span>
+            <div class="checks">
+              <label><input type="checkbox" id="refChk"> Atomic lines of each element</label>
+              <label><input type="checkbox" id="lblChk" checked> Peak labels</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="strip-wrap">
+        <canvas id="strip" aria-label="Spectroscope view: the spectrum as it looks through a diffraction grating"></canvas>
+        <p class="cap">Spectroscope view · UV and IR are invisible to the eye and shown in grey</p>
+      </div>
+      <div class="graph-wrap">
+        <canvas id="graph" aria-label="Emission spectrum graph. Tap a peak to identify it."></canvas>
+      </div>
+      <p class="cap">Tap or click any peak to identify it and see the photon calculation.</p>
+      <div class="detail" id="detail"></div>
+      <div class="two">
+        <div>
+          <h3>Strongest features in view</h3>
+          <div class="tbl"><table id="tbl"></table></div>
+        </div>
+        <div>
+          <h3>What you're seeing</h3>
+          <ul class="notes" id="notes"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="card about">
+    <details open>
+      <summary>Why molecules don't just show their atoms' lines</summary>
+      <div class="cols">
+        <div>
+          <p><b>Atoms</b> have only electronic energy levels, so each transition gives one sharp line at λ = hc/ΔE.</p>
+          <p><b>Molecules</b> also vibrate and rotate. Each electronic transition splits into many vibrational bands (v′ → v″), and each band into dozens of rotational lines. The lines crowd together at a <b>band head</b> and spread out on one side, so molecular spectra look like shaded combs instead of single lines.</p>
+        </div>
+        <div>
+          <p><b>The discharge is violent.</b> Fast electrons excite molecules, ionize them (N₂⁺, CO⁺) and break bonds. Fragments like CH, OH, CN and C₂ glow with their own bands, freed atoms give atomic lines, and atoms can recombine into new species: an N₂ + O₂ mixture produces NO, just as lightning does.</p>
+          <p>Turn up <b>discharge power</b> and watch parent-molecule bands fade while atomic lines and ion bands grow. Strong bonds (N≡N, C≡O) survive longest.</p>
+        </div>
+      </div>
+    </details>
+    <details>
+      <summary>Investigation prompts</summary>
+      <ol>
+        <li>Build a single H atom, then H₂. Which features are new in H₂? Why does H₂ show a smooth continuum below 400 nm when atomic H never does? (Tap it and look at the lower-state curve.)</li>
+        <li>Calculate the photon energy of Hβ (486.1 nm) in eV and kJ/mol. Check it against the Rydberg equation for n = 4 → 2.</li>
+        <li>Build N₂ and slide discharge power from low to high. Rank the N₂, N₂⁺ and N-atom features by how they respond, and explain the trend using the N≡N bond energy (945 kJ/mol).</li>
+        <li>Compare CH₄, C₂H₆, C₂H₄ and C₂H₂. How does the C₂ Swan band at 516.5 nm change relative to the CH band at 431.4 nm? What does that suggest about which bonds are present?</li>
+        <li>CO₂ has no “CO₂ band” in the visible. Identify the species responsible for the strongest visible features and explain where they came from.</li>
+        <li>Load “Titan haze (N₂ + CH₄)”. Neither gas contains a C–N bond. Which feature shows that one formed in the tube?</li>
+        <li>Use Mystery tube: identify the gas from its spectrum alone, then build it until the match score reaches 100%.</li>
+      </ol>
+    </details>
+    <details>
+      <summary>About the model and sources</summary>
+      <p>Atomic line wavelengths (in air) are from the NIST Atomic Spectra Database. Molecular band-head wavelengths follow standard tables (Pearse &amp; Gaydon, <i>The Identification of Molecular Spectra</i>), rounded to 0.1 nm; a few weaker heads (CO⁺, CO₂⁺ A–X, O₂⁺, NH₂) are approximate. Relative intensities, rotational structure, and the fragmentation and recombination rates are simplified models chosen to behave like a real low-pressure discharge. Real tubes vary with pressure, current and impurities. The energy-level diagrams are schematic, not to scale.</p>
+      <p class="src">Lewis structures use octet filling by electronegativity; formal charges are shown where they are not zero.</p>
+    </details>
+  </section>
+</div>
+
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const SUBD='₀₁₂₃₄₅₆₇₈₉', SUPD='⁰¹²³⁴⁵⁶⁷⁸⁹';
+const sub=s=>String(s).replace(/\d/g,d=>SUBD[d]);
+const sup=s=>String(s).replace(/\d/g,d=>SUPD[d]).replace('-','⁻').replace('+','⁺');
+const HC=1239.84198, H_=6.62607015e-34, C_=2.99792458e8, NA=6.02214076e23, QE=1.602176634e-19;
+
+/* ---------------- Elements ---------------- */
+const ELEM={
+  H:{v:1,max:1,ve:1,en:2.20,color:'#f4f6fa',text:'#1a1d24',name:'Hydrogen'},
+  C:{v:4,max:4,ve:4,en:2.55,color:'#3d424c',text:'#ffffff',name:'Carbon'},
+  N:{v:3,max:4,ve:5,en:3.04,color:'#3558d8',text:'#ffffff',name:'Nitrogen'},
+  O:{v:2,max:3,ve:6,en:3.44,color:'#d83c3c',text:'#ffffff',name:'Oxygen'},
+  F:{v:1,max:1,ve:7,en:3.98,color:'#9fd44c',text:'#17200a',name:'Fluorine'},
+  Cl:{v:1,max:1,ve:7,en:3.16,color:'#2ea64e',text:'#ffffff',name:'Chlorine'},
+  He:{v:0,max:0,ve:2,en:0,color:'#66d6ea',text:'#0c2328',name:'Helium'},
+  Ne:{v:0,max:0,ve:8,en:0,color:'#f3913e',text:'#2a1405',name:'Neon'},
+};
+const ORDER=['H','C','N','O','F','Cl','He','Ne'];
+
+/* ---------------- Emitters (atomic lines, molecular bands, continua) ----------------
+   atom line: [λ air nm, rel, transition, ion?, label?]
+   band head: [λ nm, rel, "v′,v″", {override}] */
+const EM={
+H:{kind:'atom',el:'H',name:'Atomic hydrogen (H I)',s:1.0,lines:[
+  [656.28,100,'n = 3 → n = 2',0,'Hα'],[486.13,45,'n = 4 → n = 2',0,'Hβ'],[434.05,22,'n = 5 → n = 2',0,'Hγ'],
+  [410.17,12,'n = 6 → n = 2',0,'Hδ'],[397.01,7,'n = 7 → n = 2',0,'Hε'],[388.91,4,'n = 8 → n = 2',0,'Hζ']],
+  why:'H atoms, freed when the discharge breaks bonds to hydrogen. Every visible hydrogen line is a Balmer line ending on n = 2.'},
+He:{kind:'atom',el:'He',name:'Helium (He I)',s:0.8,lines:[
+  [587.56,100,'1s3d ³D → 1s2p ³P°'],[667.82,35,'1s3d ¹D → 1s2p ¹P°'],[706.52,40,'1s3s ³S → 1s2p ³P°'],[501.57,25,'1s3p ¹P° → 1s2s ¹S'],
+  [492.19,12,'1s4d ¹D → 1s2p ¹P°'],[471.31,8,'1s4s ³S → 1s2p ³P°'],[447.15,30,'1s4d ³D → 1s2p ³P°'],[388.86,25,'1s3p ³P° → 1s2s ³S'],[728.13,12,'1s3s ¹S → 1s2p ¹P°']],
+  why:'Helium has a full shell, so it never bonds. A helium tube shows only sharp atomic lines; 587.6 nm gives its peachy glow.'},
+Ne:{kind:'atom',el:'Ne',name:'Neon (Ne I)',s:0.9,lines:[
+  [540.06,20],[585.25,100],[588.19,25],[594.48,40],[597.55,10],[603.00,15],[607.43,35],[609.62,40],[614.31,60],[616.36,25],[621.73,25],[626.65,40],[630.48,15],[633.44,45],[638.30,50],[640.22,85],[650.65,50],[653.29,15],[659.90,30],[667.83,40],[671.70,25],[692.95,45],[703.24,60],[717.39,10],[724.52,25],[743.89,15]].map(l=>[l[0],l[1],'2p⁵3p → 2p⁵3s']),
+  why:'Neon atoms: dozens of red and orange lines from 2p⁵3p → 2p⁵3s transitions. That is the color of a neon sign.'},
+N:{kind:'atom',el:'N',name:'Nitrogen atoms and ions (N I, N II)',s:0.45,lines:[
+  [742.36,25,'2p²3p ⁴S° → 2p²3s ⁴P'],[744.23,35,'2p²3p ⁴S° → 2p²3s ⁴P'],[746.83,50,'2p²3p ⁴S° → 2p²3s ⁴P'],
+  [818.49,20,'2p²3p ⁴P° → 2p²3s ⁴P'],[821.63,45,'2p²3p ⁴P° → 2p²3s ⁴P'],[824.24,25,'2p²3p ⁴P° → 2p²3s ⁴P'],[868.03,40,'2p²3p ⁴D° → 2p²3s ⁴P'],
+  [399.50,25,'3p → 3s (N⁺ ion)',1],[463.05,30,'3p → 3s (N⁺ ion)',1],[500.15,25,'3d → 3p (N⁺ ion)',1],[500.51,40,'3d → 3p (N⁺ ion)',1],[566.66,30,'3p → 3s (N⁺ ion)',1],[567.96,50,'3p → 3s (N⁺ ion)',1]],
+  why:'N atoms (red/near-IR) and N⁺ ions (blue-green). They need high power because N≡N (945 kJ/mol) is one of the strongest bonds known.'},
+O:{kind:'atom',el:'O',name:'Oxygen atoms and ions (O I, O II)',s:0.7,lines:[
+  [777.19,100,'2p³3p ⁵P → 2p³3s ⁵S°'],[777.42,85,'2p³3p ⁵P → 2p³3s ⁵S°'],[777.54,70,'2p³3p ⁵P → 2p³3s ⁵S°'],[844.64,70,'2p³3p ³P → 2p³3s ³S°'],
+  [615.68,12,'2p³4d ⁵D° → 2p³3p ⁵P'],[645.44,8,'2p³5s ⁵S° → 2p³3p ⁵P'],[436.82,8,'2p³4p ³P → 2p³3s ³S°'],[533.07,6,'2p³5d ⁵D° → 2p³3p ⁵P'],
+  [557.73,5,'2p⁴ ¹S → 2p⁴ ¹D (forbidden: the aurora’s green line)'],[630.03,4,'2p⁴ ¹D → 2p⁴ ³P (forbidden: aurora red)'],
+  [441.49,10,'3p → 3s (O⁺ ion)',1],[464.91,12,'3p → 3s (O⁺ ion)',1],[434.94,8,'3p → 3s (O⁺ ion)',1]],
+  why:'O atoms from broken bonds to oxygen. The 777 nm triplet dominates; the weak 557.7 nm “forbidden” line is the green of the aurora.'},
+C:{kind:'atom',el:'C',name:'Carbon atoms and ions (C I, C II)',s:0.5,lines:[
+  [247.86,100,'2p3s ¹P° → 2p² ¹S'],[833.51,25,'2p3p ¹S → 2p3s ¹P°'],[711.32,12,'2p4d → 2p3p'],[601.32,10,'2p4d → 2p3p'],[538.03,10,'2p4p → 2p3s'],[505.22,8,'2p4p → 2p3s'],
+  [426.73,40,'4f ²F° → 3d ²D (C⁺ ion)',1],[657.81,20,'3p ²P° → 3s ²S (C⁺ ion)',1],[658.29,25,'3p ²P° → 3s ²S (C⁺ ion)',1],[392.07,10,'4p → 3d (C⁺ ion)',1]],
+  why:'Free carbon atoms emit mostly in the ultraviolet (247.9 nm). C⁺ ions add a blue line at 426.7 nm.'},
+F:{kind:'atom',el:'F',name:'Fluorine atoms (F I)',s:0.7,lines:[[685.60,60],[690.25,25],[703.75,100],[712.79,30],[720.24,25],[731.10,20],[733.20,25],[739.87,20],[775.47,30]].map(l=>[l[0],l[1],'2p⁴3p → 2p⁴3s']),
+  why:'F atoms: a cluster of red lines near 685–740 nm. F–F is weak (155 kJ/mol), so fluorine dissociates easily.'},
+Cl:{kind:'atom',el:'Cl',name:'Chlorine atoms and ions (Cl I, Cl II)',s:0.6,lines:[
+  [725.66,40,'3p⁴4p → 3p⁴4s'],[754.71,25,'3p⁴4p → 3p⁴4s'],[771.76,40,'3p⁴4p → 3p⁴4s'],[774.50,30,'3p⁴4p → 3p⁴4s'],[808.68,30,'3p⁴4p → 3p⁴4s'],[837.59,100,'3p⁴4p → 3p⁴4s'],[858.60,50,'3p⁴4p → 3p⁴4s'],
+  [479.45,35,'4p → 4s (Cl⁺ ion)',1],[481.01,30,'4p → 4s (Cl⁺ ion)',1],[481.95,25,'4p → 4s (Cl⁺ ion)',1],[489.68,15,'4p → 4s (Cl⁺ ion)',1],[490.48,15,'4p → 4s (Cl⁺ ion)',1],[521.74,20,'4p → 4s (Cl⁺ ion)',1],[539.21,25,'4p → 4s (Cl⁺ ion)',1]],
+  why:'Cl atoms glow in the near-IR (837.6 nm); Cl⁺ ions add blue-green lines near 480 nm.'},
+
+N2P2:{kind:'band',sp:'N₂',name:'N₂ second positive system',up:'C³Π<sub>u</sub>',lo:'B³Π<sub>g</sub>',deg:'v',w:2.6,s:1.0,heads:[
+  [297.68,20,'2,0'],[313.6,12,'2,1'],[315.93,50,'1,0'],[333.9,12,'1,1'],[337.13,100,'0,0'],[350.05,10,'2,3'],[353.67,30,'1,2'],[357.69,70,'0,1'],
+  [371.05,12,'2,4'],[375.54,25,'1,3'],[380.49,35,'0,2'],[394.30,8,'2,5'],[399.84,12,'1,4'],[405.94,12,'0,3'],[420.05,5,'1,5'],[434.36,5,'0,4']],
+  why:'Intact N₂ excited by electron impact. These violet and UV bands also make the blue-violet glow of lightning and sparks in air.'},
+N2P1:{kind:'band',sp:'N₂',name:'N₂ first positive system',up:'B³Π<sub>g</sub>',lo:'A³Σ<sub>u</sub>⁺',deg:'v',w:4,s:0.55,heads:[
+  [775.3,25,'2,0'],[762.6,30,'3,1'],[750.4,30,'4,2'],[738.7,22,'5,3'],[727.3,15,'6,4'],
+  [687.5,25,'3,0'],[678.9,35,'4,1'],[670.5,45,'5,2'],[662.4,45,'6,3'],[654.5,40,'7,4'],[646.9,30,'8,5'],[639.5,20,'9,6'],[632.3,12,'10,7'],
+  [618.6,15,'4,0'],[612.7,25,'5,1'],[606.9,30,'6,2'],[601.3,30,'7,3'],[595.9,28,'8,4'],[590.6,25,'9,5'],[585.4,20,'10,6'],[580.4,14,'11,7'],[575.5,8,'12,8']],
+  why:'N₂ first positive bands: evenly spaced red-orange groups. They give a nitrogen tube its pink-salmon color.'},
+N2I:{kind:'band',sp:'N₂⁺',name:'N₂⁺ first negative system',up:'B²Σ<sub>u</sub>⁺',lo:'X²Σ<sub>g</sub>⁺',deg:'v',w:2.5,s:0.8,heads:[
+  [358.21,30,'1,0'],[388.43,15,'1,1'],[391.44,100,'0,0'],[423.65,15,'1,2'],[427.81,50,'0,1'],[465.2,8,'1,3'],[470.92,15,'0,2'],[522.8,4,'0,3']],
+  why:'N₂⁺ ions, made when electrons knock an electron out of N₂. The 391.4 and 427.8 nm bands are the blue-violet of the aurora.'},
+O2A:{kind:'band',sp:'O₂',name:'O₂ atmospheric band',up:'b¹Σ<sub>g</sub>⁺',lo:'X³Σ<sub>g</sub>⁻',deg:'r',w:6,s:0.25,heads:[[759.4,100,'0,0'],[686.7,12,'1,0']],
+  why:'O₂ atmospheric band near 760 nm: a spin-forbidden, slow transition, so it is weak. Sunlight shows the same band in absorption.'},
+O2SR:{kind:'cont',sp:'O₂',name:'O₂ Schumann–Runge bands (unresolved)',up:'B³Σ<sub>u</sub>⁻',lo:'X³Σ<sub>g</sub>⁻',s:0.2,amp:0.18,peak:330,f:l=>Math.exp(-Math.pow((l-330)/45,2)),
+  why:'O₂ Schumann–Runge bands in the UV. Hundreds of bands overlap here into a smooth hump at this resolution.'},
+O2I:{kind:'band',sp:'O₂⁺',name:'O₂⁺ first negative system',up:'b⁴Σ<sub>g</sub>⁻',lo:'a⁴Π<sub>u</sub>',deg:'r',w:3,s:0.5,heads:[[529.6,35,'2,0'],[558.5,40,'2,1'],[563.2,60,'1,0'],[597.3,40,'1,1'],[602.6,70,'0,0'],[637.1,20,'0,1']],
+  why:'O₂⁺ ions emit yellow-green bands. They appear only when the discharge is strong enough to ionize O₂.'},
+H2F:{kind:'mlines',sp:'H₂',name:'H₂ Fulcher-α system and many-line spectrum',up:'d³Π<sub>u</sub>',lo:'a³Σ<sub>g</sub>⁺',s:0.35,lines:null,
+  why:'Intact H₂: a forest of close red lines (the Fulcher-α band). H₂ is so light that its rotational lines are far apart, so the “band” looks like many separate lines.'},
+H2C:{kind:'cont',sp:'H₂',name:'H₂ continuum',up:'a³Σ<sub>g</sub>⁺',lo:'b³Σ<sub>u</sub>⁺ (repulsive)',s:0.25,amp:0.35,peak:235,
+  f:l=>l<170?0:Math.exp(-Math.pow((l-235)/(l<235?35:95),2)),
+  why:'H₂ continuum: the lower state is repulsive, so the molecule flies apart as it emits. With no quantized lower level, the emission is smooth instead of lines.'},
+CH:{kind:'band',sp:'CH',name:'CH A–X band',up:'A²Δ',lo:'X²Π',deg:'q',w:1.6,s:0.7,heads:[[431.42,100,'0,0'],
+  [387.1,30,'0,0',{name:'CH B–X band',up:'B²Σ⁻'}],[314.4,10,'0,0',{name:'CH C–X band',up:'C²Σ⁺'}]],
+  why:'CH radicals from broken C–H bonds. The 431 nm band is also seen in flames and in the Sun’s spectrum (the Fraunhofer G band).'},
+C2:{kind:'band',sp:'C₂',name:'C₂ Swan bands',up:'d³Π<sub>g</sub>',lo:'a³Π<sub>u</sub>',deg:'v',w:3.2,s:0.8,heads:[
+  [436.5,6,'3,1'],[438.3,10,'2,0'],[469.8,15,'3,2'],[471.5,30,'2,1'],[473.7,50,'1,0'],[509.8,20,'2,2'],[512.9,40,'1,1'],[516.5,100,'0,0'],
+  [554.1,15,'2,3'],[558.6,35,'1,2'],[563.6,60,'0,1'],[605.9,8,'2,4'],[612.2,15,'1,3'],[619.1,20,'0,2']],
+  why:'C₂ Swan bands: green and blue-green. C₂ forms when carbon atoms meet, and it gives gas-stove flames and comet heads their color.'},
+CN:{kind:'band',sp:'CN',name:'CN violet system',up:'B²Σ⁺',lo:'X²Σ⁺',deg:'v',w:2.4,s:1.0,heads:[
+  [358.6,25,'2,1'],[359.0,35,'1,0'],[385.5,20,'3,3'],[386.2,35,'2,2'],[387.1,60,'1,1'],[388.34,100,'0,0'],[418.1,25,'2,3'],[419.7,35,'1,2'],[421.6,45,'0,1']],
+  why:'CN violet bands at 388 nm. CN forms whenever carbon and nitrogen atoms meet in the discharge; comets and Titan’s atmosphere show it too.'},
+OH:{kind:'band',sp:'OH',name:'OH A–X system',up:'A²Σ⁺',lo:'X²Π',deg:'r',w:4.5,s:1.0,heads:[[281.1,25,'1,0'],[287.5,12,'2,1'],[306.36,100,'0,0'],[312.2,15,'1,1'],[342.8,8,'0,1']],
+  why:'OH radicals from broken O–H bonds (or H + O recombining). Its strongest band, at 306 nm, is ultraviolet and invisible to the eye.'},
+NH:{kind:'band',sp:'NH',name:'NH A–X band',up:'A³Π',lo:'X³Σ⁻',deg:'q',w:1.2,s:0.7,heads:[[336.0,100,'0,0'],[337.0,30,'1,1']],
+  why:'NH radicals from broken N–H bonds. The tight 336 nm band is in the near-UV.'},
+NH2:{kind:'band',sp:'NH₂',name:'NH₂ α bands',up:'Ã²A₁',lo:'X̃²B₁',deg:'q',w:3,s:0.4,heads:[[542.3,20,'vibronic'],[570.3,45,'vibronic'],[597.7,60,'vibronic'],[630.0,50,'vibronic'],[664.0,30,'vibronic'],[692.0,15,'vibronic']],
+  why:'NH₂ radicals, from ammonia losing one H. Their orange-yellow α bands are the color of an ammonia flame.'},
+COA:{kind:'band',sp:'CO',name:'CO Ångström system',up:'B¹Σ⁺',lo:'A¹Π',deg:'v',w:3.5,s:0.8,heads:[[412.4,15,'1,0'],[451.1,60,'0,0'],[483.5,100,'0,1'],[519.8,85,'0,2'],[561.0,50,'0,3'],[607.9,25,'0,4'],[662.0,10,'0,5']],
+  why:'CO Ångström bands (blue-green), from CO molecules that are intact or formed from C + O. The C≡O bond (1072 kJ/mol) survives almost anything.'},
+CO3:{kind:'band',sp:'CO',name:'CO third positive system',up:'b³Σ⁺',lo:'a³Π',deg:'v',w:2.5,s:0.5,heads:[[283.3,50,'0,0'],[297.7,60,'0,1'],[313.4,45,'0,2'],[330.4,25,'0,3'],[349.3,10,'0,4']],
+  why:'CO third positive bands in the UV, from the same CO molecules.'},
+COI:{kind:'band',sp:'CO⁺',name:'CO⁺ comet-tail system',up:'A²Π',lo:'X²Σ⁺',deg:'r',w:3,s:0.6,heads:[[400.4,20,'3,0'],[425.2,35,'2,0'],[427.3,30,'2,0'],[456.0,20,'1,0']],
+  why:'CO⁺ ions. These blue “comet-tail” bands are named for the ion tails of comets, where sunlight ionizes CO.'},
+CO2I:{kind:'band',sp:'CO₂⁺',name:'CO₂⁺ Fox–Duffendack–Barker and A–X bands',up:'B²Σ<sub>u</sub>⁺',lo:'X²Π<sub>g</sub>',deg:'q',w:1.2,s:0.9,heads:[
+  [288.3,100,'0,0'],[289.6,90,'0,0'],[351.0,25,'A–X',{up:'A²Π<sub>u</sub>'}],[367.4,35,'A–X',{up:'A²Π<sub>u</sub>'}],[384.6,30,'A–X',{up:'A²Π<sub>u</sub>'}],[405.3,18,'A–X',{up:'A²Π<sub>u</sub>'}]],
+  why:'CO₂⁺ ions. The UV doublet at 288/290 nm is the only strong feature from the CO₂ “family”, and spacecraft see it glowing in the upper atmosphere of Mars.'},
+NOG:{kind:'band',sp:'NO',name:'NO γ system',up:'A²Σ⁺',lo:'X²Π',deg:'q',w:1.5,s:0.8,heads:[[226.9,60,'0,0'],[236.3,100,'0,1'],[247.1,90,'0,2'],[258.6,60,'0,3'],[271.1,30,'0,4'],[284.6,12,'0,5']],
+  why:'NO γ bands, deep in the UV. NO forms in any discharge containing both N and O; lightning makes nitrogen oxides the same way.'},
+NO2C:{kind:'cont',sp:'NO₂',name:'NO₂ continuum',up:'NO₂* (overlapping Ã, B̃ states)',lo:'X̃²A₁',s:0.6,amp:0.5,peak:620,f:l=>Math.exp(-Math.pow((l-620)/(l<620?75:190),2)),
+  why:'NO₂ has so many overlapping vibrational and rotational levels that its bands merge into a broad yellow-to-red glow (the “air afterglow”).'},
+CL2:{kind:'band',sp:'Cl₂',name:'Cl₂ D′→A′ band',up:'D′ (2<sub>g</sub>)',lo:'A′ (2<sub>u</sub>)',deg:'v',w:4,s:0.5,heads:[[257.8,100,'0,0']],
+  why:'Excited Cl₂ emits a strong band at 258 nm (the same transition used in chlorine excimer UV lamps).'},
+};
+const BONDEM={'H-H':['H2F','H2C'],'C-H':['CH'],'C-C':['C2'],'C-N':['CN'],'H-N':['NH'],'H-O':['OH'],'C-O':['COA','CO3'],'N-N':['N2P2','N2P1'],'O-O':['O2A','O2SR'],'N-O':['NOG'],'Cl-Cl':['CL2']};
+const IONEM={'N-N':'N2I','O-O':'O2I','C-O':'COI'};
+const BE={'H-H1':436,'C-H1':413,'C-C1':348,'C-C2':614,'C-C3':839,'C-O1':358,'C-O2':799,'C-O3':1072,'H-O1':463,'H-N1':391,'N-N1':163,'N-N2':418,'N-N3':945,'O-O1':146,'O-O2':498,'N-O1':201,'N-O2':607,'C-N1':293,'C-N2':615,'C-N3':891,'F-H1':567,'Cl-H1':431,'F-F1':155,'Cl-Cl1':242,'C-Cl1':328,'C-F1':485};
+const BSYM=['','–','=','≡'];
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+// H2 Fulcher lines: Q-branches of the diagonal bands plus a deterministic many-line background
+(()=>{const L=[];const q=[['0,0',[601.83,602.38,603.19,604.27,605.59],[60,80,55,40,25]],['1,1',[612.18,612.73,613.54,614.62,615.94],[50,65,45,30,20]],['2,2',[622.48,623.03,623.84,624.93],[35,45,30,20]],['3,3',[632.70,633.30,634.10],[20,25,15]]];
+  for(const [v,ls,rs] of q) ls.forEach((l,i)=>L.push([l,rs[i],v]));
+  const r=mulberry32(11); for(let i=0;i<60;i++) L.push([575+r()*75,4+r()*14,'many-line']); for(let i=0;i<34;i++) L.push([455+r()*120,3+r()*8,'many-line']);
+  EM.H2F.lines=L;})();
+
+/* ---------------- Molecule library ---------------- */
+const LIB_SRC=[
+ ['H₂','Hydrogen','H H|0-1','d',1],['N₂','Nitrogen','N N|0#1','d',1],['O₂','Oxygen','O O|0=1','d',1],['F₂','Fluorine','F F|0-1','d'],['Cl₂','Chlorine','Cl Cl|0-1','d',1],
+ ['HF','Hydrogen fluoride','H F|0-1','d'],['HCl','Hydrogen chloride','H Cl|0-1','d',1],['CO','Carbon monoxide','C O|0#1','d',1],
+ ['NO','Nitric oxide','N O|0=1','d',1,{note:'Odd number of electrons: NO is a stable radical.'}],
+ ['H₂O','Water','O H H|0-1 0-2','s',1],['CO₂','Carbon dioxide','C O O|0=1 0=2','s',1,{extra:[['CO2I','ion'],['CO2I','frag']]}],
+ ['HCN','Hydrogen cyanide','C H N|0-1 0#2','s',1],['NO₂','Nitrogen dioxide','N O O|0=1 0-2','s',0,{extra:[['NO2C','intact']],note:'Odd number of electrons: NO₂ is a stable radical.'}],
+ ['N₂O','Nitrous oxide','N N O|0#1 1-2','s'],['O₃','Ozone','O O O|0=1 1-2','s'],['H₂O₂','Hydrogen peroxide','O O H H|0-1 0-2 1-3','s'],
+ ['NH₃','Ammonia','N H H H|0-1 0-2 0-3','s',1],['N₂H₄','Hydrazine','N N H H H H|0-1 0-2 0-3 1-4 1-5','s'],
+ ['CH₄','Methane','C H H H H|0-1 0-2 0-3 0-4','o',1],['C₂H₆','Ethane','C C H H H H H H|0-1 0-2 0-3 0-4 1-5 1-6 1-7','o'],
+ ['C₂H₄','Ethene (ethylene)','C C H H H H|0=1 0-2 0-3 1-4 1-5','o'],['C₂H₂','Ethyne (acetylene)','C C H H|0#1 0-2 1-3','o',1],
+ ['C₃H₈','Propane','C C C H H H H H H H H|0-1 1-2 0-3 0-4 0-5 1-6 1-7 2-8 2-9 2-10','o'],
+ ['CH₃OH','Methanol','C O H H H H|0-1 0-2 0-3 0-4 1-5','o',1],['C₂H₅OH','Ethanol','C C O H H H H H H|0-1 1-2 0-3 0-4 0-5 1-6 1-7 2-8','o'],
+ ['CH₂O','Formaldehyde','C O H H|0=1 0-2 0-3','o'],['HCOOH','Formic acid','C O O H H|0=1 0-2 0-3 2-4','o'],
+ ['CH₃NH₂','Methylamine','C N H H H H H|0-1 0-2 0-3 0-4 1-5 1-6','o'],['CO(NH₂)₂','Urea','C O N N H H H H|0=1 0-2 0-3 2-4 2-5 3-6 3-7','o'],
+ ['CH₃Cl','Chloromethane','C Cl H H H|0-1 0-2 0-3 0-4','o'],['CCl₄','Carbon tetrachloride','C Cl Cl Cl Cl|0-1 0-2 0-3 0-4','o'],['CF₄','Tetrafluoromethane','C F F F F|0-1 0-2 0-3 0-4','o'],
+ ['OH','Hydroxyl radical','O H|0-1','r',0,{rad:1}],['CH','Methylidyne radical','C H|0-1','r',0,{rad:1}],['CN','Cyano radical','C N|0#1','r',0,{rad:1}],
+ ['NH','Imidogen radical','N H|0-1','r',0,{rad:1}],['NH₂','Amino radical','N H H|0-1 0-2','r',0,{rad:1,extra:[['NH2','intact']]}],
+ ['CH₃','Methyl radical','C H H H|0-1 0-2 0-3','r',0,{rad:1}],['C₂','Dicarbon','C C|0=1','r',0,{rad:1,note:'C₂ exists only fleetingly, in flames, discharges and comets.'}],
+ ['He','Helium','He|','a',1],['Ne','Neon','Ne|','a',1],['H','Hydrogen atom','H|','a',0,{rad:1}],
+];
+const GROUPS={d:'Diatomic gases',s:'Small molecules',o:'Carbon compounds',r:'Radicals (fragments)',a:'Atoms'};
+const MIXES=[['Air (4 N₂ : 1 O₂)',[['N₂',4],['O₂',1]]],['Titan haze (N₂ + CH₄)',[['N₂',3],['CH₄',1]]],['Mars air (CO₂ + N₂)',[['CO₂',3],['N₂',1]]],
+  ['Comet coma (H₂O, CO, HCN)',[['H₂O',2],['CO',1],['HCN',1]]],['Neon sign with an H₂ leak',[['Ne',3],['H₂',1]]]];
+
+function parseSpec(spec){const [a,b]=spec.split('|');const els=a.trim().split(/\s+/);const bonds=[];
+  (b||'').trim().split(/\s+/).filter(Boolean).forEach(t=>{const m=t.match(/^(\d+)([-=#])(\d+)$/);bonds.push({a:+m[1],b:+m[3],o:{'-':1,'=':2,'#':3}[m[2]]});});return {els,bonds};}
+function keyOf(els,bonds){ // els: array of symbols; bonds: {a,b,o} by index
+  const c={};els.forEach(e=>c[e]=(c[e]||0)+1);
+  const nb=els.map(()=>[]);const bl=[];
+  bonds.forEach(b=>{const p=[els[b.a],els[b.b]].sort().join('-');bl.push(p+b.o);nb[b.a].push(els[b.b]+b.o);nb[b.b].push(els[b.a]+b.o);});
+  const env=els.map((e,i)=>e+'('+nb[i].sort().join(',')+')').sort().join(';');
+  return Object.keys(c).sort().map(e=>e+c[e]).join('')+'|'+bl.sort().join(',')+'|'+env;}
+const LIB=LIB_SRC.map(([f,name,spec,grp,mys,o])=>{const s=parseSpec(spec);return Object.assign({f,name,spec,grp,mys:!!mys,key:keyOf(s.els,s.bonds)},o||{});});
+const LIBMAP=new Map(LIB.map(l=>[l.key,l]));
+const LIBF=new Map(LIB.map(l=>[l.f,l]));
+
+/* ---------------- State ---------------- */
+let atoms=[],bonds=[],nextId=1,sel=null,hist=[],comps=[],atomInfo={};
+let W=600,H=400;
+const ui={power:.45,res:.6,range:'full',ref:false,labels:true,selFeat:null,hoverL:null};
+let SP=null; // current spectrum result
+let mystery=null;
+
+const svg=$('#mol');
+const save=()=>{try{localStorage.setItem('dtl-v1',JSON.stringify({atoms,bonds,nextId}));}catch(e){}};
+const snapshot=()=>JSON.stringify({atoms,bonds,nextId});
+function pushHist(){hist.push(snapshot());if(hist.length>60)hist.shift();}
+function undo(){if(!hist.length){toast('Nothing to undo.');return;}const s=JSON.parse(hist.pop());atoms=s.atoms;bonds=s.bonds;nextId=s.nextId;sel=null;update();}
+
+const atomById=id=>atoms.find(a=>a.id===id);
+const bondsOf=id=>bonds.filter(b=>b.a===id||b.b===id);
+const used=id=>bondsOf(id).reduce((s,b)=>s+b.o,0);
+const nbrs=id=>bondsOf(id).map(b=>atomById(b.a===id?b.b:b.a));
+const bondBetween=(x,y)=>bonds.find(b=>(b.a===x&&b.b===y)||(b.a===y&&b.b===x));
+
+let toastT=0;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);}
+
+/* ---------------- Analysis: components, Lewis electrons, recognition ---------------- */
+function analyze(){
+  const idx=new Map(atoms.map((a,i)=>[a.id,i]));const par=atoms.map((_,i)=>i);
+  const find=i=>par[i]===i?i:(par[i]=find(par[i]));
+  bonds.forEach(b=>{const x=find(idx.get(b.a)),y=find(idx.get(b.b));if(x!==y)par[x]=y;});
+  const groups=new Map();atoms.forEach((a,i)=>{const r=find(i);if(!groups.has(r))groups.set(r,[]);groups.get(r).push(a);});
+  comps=[];atomInfo={};
+  for(const list of groups.values()){
+    const ids=new Set(list.map(a=>a.id));const cb=bonds.filter(b=>ids.has(b.a));
+    const li=new Map(list.map((a,i)=>[a.id,i]));const els=list.map(a=>a.el);
+    const kb=cb.map(b=>({a:li.get(b.a),b:li.get(b.b),o:b.o}));
+    const key=keyOf(els,kb);const lib=LIBMAP.get(key)||null;
+    const counts={};els.forEach(e=>counts[e]=(counts[e]||0)+1);
+    // electrons
+    const B=list.map(a=>used(a.id));let R=els.reduce((s,e)=>s+ELEM[e].ve,0)-2*cb.reduce((s,b)=>s+b.o,0);
+    const need=list.map((a,i)=>Math.max(0,((a.el==='H'||a.el==='He')?2:8)-2*B[i]));const L=list.map(()=>0);
+    const byEn=[...new Set(els.map(e=>ELEM[e].en))].sort((x,y)=>y-x);
+    for(const en of byEn){const mem=list.map((a,i)=>i).filter(i=>ELEM[els[i]].en===en);let prog=true;
+      while(R>0&&prog){prog=false;for(const i of mem){if(R<=0)break;if(need[i]>0){const g=Math.min(2,need[i],R);L[i]+=g;need[i]-=g;R-=g;prog=true;}}}}
+    if(R>0){let bi=0;B.forEach((b,i)=>{if(b>B[bi])bi=i;});L[bi]+=R;R=0;}
+    let unpaired=0,deficit=0;
+    list.forEach((a,i)=>{const fc=ELEM[a.el].ve-L[i]-B[i];atomInfo[a.id]={L:L[i],fc};unpaired+=L[i]%2;if(a.el!=='H'||B[i]===0)deficit+=need[i];});
+    let nh2=false;list.forEach(a=>{if(a.el==='N'&&nbrs(a.id).filter(n=>n.el==='H').length>=2)nh2=true;});
+    let status;
+    if(list.length===1){status=ELEM[els[0]].v===0?'noble':'atom';}
+    else if(lib){status=lib.rad?'radical':'stable';}
+    else status=(deficit===0&&unpaired===0)?'complete':'open';
+    const formula=lib?lib.f:hill(counts);
+    const name=lib?lib.name:(list.length===1?ELEM[els[0]].name+' atom':(status==='complete'?'Unnamed molecule':'Incomplete structure'));
+    comps.push({atoms:list,bondList:cb.map(b=>({key:[atomById(b.a).el,atomById(b.b).el].sort().join('-'),o:b.o})),counts,key,lib,formula,name,status,nh2,unpaired,deficit});
+  }
+  return comps;
+}
+function hill(c){const ks=Object.keys(c);let order;if(c.C){order=['C'];if(c.H)order.push('H');order=order.concat(ks.filter(k=>k!=='C'&&k!=='H').sort());}else order=ks.sort();
+  return order.map(e=>e+(c[e]>1?sub(c[e]):'')).join('');}
+
+/* ---------------- Building operations ---------------- */
+function clampPt(x,y){return [Math.min(W-26,Math.max(26,x)),Math.min(H-34,Math.max(26,y))];}
+function angGap(a,len){const angs=nbrs(a.id).map(n=>Math.atan2(n.y-a.y,n.x-a.x));const cands=[];
+  for(let k=0;k<24;k++){const t=-Math.PI/2+k*Math.PI/12+(angs.length?0:Math.PI/2);let md=angs.length?Infinity:0;
+    for(const g of angs){let d=Math.abs(((t-g)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI);md=Math.min(md,d);}
+    const [x,y]=[a.x+len*Math.cos(t),a.y+len*Math.sin(t)];let crowd=0;atoms.forEach(o=>{if(o!==a){const d=Math.hypot(o.x-x,o.y-y);if(d<44)crowd+=(44-d);}});
+    const out=(x<26||x>W-26||y<26||y>H-34)?60:0;cands.push({t,score:md*60-crowd-out-k*0.01});}
+  cands.sort((p,q)=>q.score-p.score);return cands[0].t;}
+function freeSpot(){const cx=W/2,cy=H/2-10;for(let k=0;k<400;k++){const t=k*2.399,r=9*Math.sqrt(k);const x=cx+r*Math.cos(t),y=cy+r*Math.sin(t);
+  if(x<30||x>W-30||y<30||y>H-40)continue;if(atoms.every(a=>Math.hypot(a.x-x,a.y-y)>78))return [x,y];}return [cx+(Math.random()-.5)*60,cy+(Math.random()-.5)*60];}
+function addAtom(el){
+  const E=ELEM[el];
+  if(sel!=null){const s=atomById(sel);
+    if(E.max===0){toast(`${E.name} has a full outer shell, so it doesn’t bond. Tap empty space first to add it as a separate atom.`);return;}
+    if(ELEM[s.el].max===0){toast(`${ELEM[s.el].name} can’t bond. Tap empty space first to start a new molecule.`);return;}
+    if(used(s.id)>=ELEM[s.el].max){toast(`${ELEM[s.el].name} already has ${used(s.id)} bonds. Select another atom, or tap empty space to start a new molecule.`);return;}
+    pushHist();const len=(el==='H'||s.el==='H')?50:64;const t=angGap(s,len);const [x,y]=clampPt(s.x+len*Math.cos(t),s.y+len*Math.sin(t));
+    const a={id:nextId++,el,x,y};atoms.push(a);bonds.push({id:nextId++,a:s.id,b:a.id,o:1});
+    if(used(s.id)>=ELEM[s.el].v && ELEM[el].max>1) sel=a.id; // parent full: keep building from the new atom
+  }else{pushHist();const [x,y]=freeSpot();const a={id:nextId++,el,x,y};atoms.push(a);sel=E.max>0?a.id:null;}
+  update();
+}
+function tryBond(x,y){const A=atomById(x),B=atomById(y);const ex=bondBetween(x,y);
+  if(ex){cycleBond(ex.id);return;}
+  for(const T of [A,B]){if(ELEM[T.el].max===0){toast(`${ELEM[T.el].name} has a full shell and won’t bond.`);return;}
+    if(used(T.id)>=ELEM[T.el].max){toast(`${ELEM[T.el].name} can’t take another bond (it already has ${used(T.id)}).`);return;}}
+  pushHist();bonds.push({id:nextId++,a:x,b:y,o:1});update();}
+function cycleBond(id){const b=bonds.find(q=>q.id===id);const A=atomById(b.a),B=atomById(b.b);pushHist();
+  const canUp=b.o<3&&used(A.id)<ELEM[A.el].max&&used(B.id)<ELEM[B.el].max;
+  if(canUp){b.o++;toast(['','Single','Double','Triple'][b.o]+' bond: '+A.el+BSYM[b.o]+B.el);}else{bonds=bonds.filter(q=>q!==b);toast('Bond removed.');}
+  update();}
+function removeAtom(){if(sel==null)return;pushHist();bonds=bonds.filter(b=>b.a!==sel&&b.b!==sel);atoms=atoms.filter(a=>a.id!==sel);sel=null;update();}
+function fillH(){let added=0;const snap=snapshot();
+  for(const a of [...atoms]){if(a.el==='H'||ELEM[a.el].v===0)continue;let k=ELEM[a.el].v-used(a.id);
+    while(k-->0){const t=angGap(a,50);const [x,y]=clampPt(a.x+50*Math.cos(t),a.y+50*Math.sin(t));const h={id:nextId++,el:'H',x,y};atoms.push(h);bonds.push({id:nextId++,a:a.id,b:h.id,o:1});added++;}}
+  if(added){hist.push(snap);sel=null;update();}else toast('Every atom already has its usual number of bonds.');}
+function clearAll(){if(!atoms.length)return;pushHist();atoms=[];bonds=[];sel=null;update();toast('Tube emptied. Undo brings it back.');}
+
+/* ---------------- Layout (springs + repulsion, with lone-pair ghosts for VSEPR-like angles) ---------------- */
+function layout(iter=380){
+  if(!atoms.length)return;analyze();
+  const nodes=atoms.map(a=>({x:a.x,y:a.y,g:false}));const idx=new Map(atoms.map((a,i)=>[a.id,i]));const springs=[];
+  bonds.forEach(b=>{const A=atomById(b.a),B=atomById(b.b);springs.push([idx.get(b.a),idx.get(b.b),(A.el==='H'||B.el==='H')?50:66-(b.o-1)*4]);});
+  const rnd=mulberry32(5);
+  atoms.forEach((a,i)=>{if(a.el==='H'||!bondsOf(a.id).length)return;const g=Math.ceil((atomInfo[a.id]?atomInfo[a.id].L:0)/2);
+    for(let k=0;k<g;k++){nodes.push({x:a.x+(rnd()-.5)*24,y:a.y+(rnd()-.5)*24,g:true,p:i});springs.push([i,nodes.length-1,30]);}});
+  const n=nodes.length,cx=W/2,cy=H/2-10;
+  for(let it=0;it<iter;it++){const fx=new Float64Array(n),fy=new Float64Array(n);
+    for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){let dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y;let d2=dx*dx+dy*dy;if(d2<1){dx=rnd()-.5;dy=rnd()-.5;d2=1;}if(d2>90000)continue;
+      const d=Math.sqrt(d2);const gi=nodes[i].g,gj=nodes[j].g;if((gi&&nodes[i].p===j)||(gj&&nodes[j].p===i))continue;
+      const k=(gi||gj)?1100:3400;const f=k/d2;fx[i]-=f*dx/d;fy[i]-=f*dy/d;fx[j]+=f*dx/d;fy[j]+=f*dy/d;}
+    for(const [i,j,L] of springs){const dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y;const d=Math.max(.1,Math.hypot(dx,dy));const f=.3*(d-L);fx[i]+=f*dx/d;fy[i]+=f*dy/d;fx[j]-=f*dx/d;fy[j]-=f*dy/d;}
+    for(let i=0;i<atoms.length;i++){fx[i]+=(cx-nodes[i].x)*.0015;fy[i]+=(cy-nodes[i].y)*.0015;}
+    const cap=10*(1-it/iter*.85);
+    for(let i=0;i<n;i++){nodes[i].x+=Math.max(-cap,Math.min(cap,fx[i]));nodes[i].y+=Math.max(-cap,Math.min(cap,fy[i]));}}
+  atoms.forEach((a,i)=>{a.x=nodes[i].x;a.y=nodes[i].y;});fit();
+}
+function fit(){if(!atoms.length)return;let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  atoms.forEach(a=>{x0=Math.min(x0,a.x);x1=Math.max(x1,a.x);y0=Math.min(y0,a.y);y1=Math.max(y1,a.y);});
+  const bw=Math.max(1,x1-x0),bh=Math.max(1,y1-y0);let s=Math.min(1,(W-70)/bw,(H-100)/bh);s=Math.max(s,.45);
+  const mx=(x0+x1)/2,my=(y0+y1)/2;atoms.forEach(a=>{a.x=W/2+(a.x-mx)*s;a.y=H/2-12+(a.y-my)*s;});}
+
+function loadMolecules(list){ // list of [formula,count]
+  pushHist();atoms=[];bonds=[];sel=null;const total=list.reduce((s,[,c])=>s+c,0);const cols=Math.ceil(Math.sqrt(total*W/H));const rows=Math.ceil(total/cols);let k=0;
+  const rnd=mulberry32(9);
+  for(const [f,c] of list){const L=LIBF.get(f);const s=parseSpec(L.spec);
+    for(let r=0;r<c;r++){const col=k%cols,row=Math.floor(k/cols);k++;const ccx=W*(col+.5)/cols,ccy=(H-20)*(row+.5)/rows;
+      const ids=s.els.map((e,i)=>{const t=i/s.els.length*Math.PI*2;const a={id:nextId++,el:e,x:ccx+28*Math.cos(t)+(rnd()-.5)*6,y:ccy+28*Math.sin(t)+(rnd()-.5)*6};atoms.push(a);return a.id;});
+      s.bonds.forEach(b=>bonds.push({id:nextId++,a:ids[b.a],b:ids[b.b],o:b.o}));}}
+  layout(total>3?520:420);update();
+}
+
+/* ---------------- Drawing the molecule canvas ---------------- */
+function resizeSvg(){const r=svg.getBoundingClientRect();const nw=Math.max(280,r.width),nh=Math.max(240,r.height);
+  if(atoms.length&&W&&H){const dx=(nw-W)/2,dy=(nh-H)/2;atoms.forEach(a=>{a.x+=dx;a.y+=dy;});}
+  W=nw;H=nh;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);}
+function lpAngles(a,count){const angs=nbrs(a.id).map(n=>Math.atan2(n.y-a.y,n.x-a.x));const chosen=[];
+  for(let c=0;c<count;c++){let best=null,bs=-1;for(let k=0;k<24;k++){const t=-Math.PI/2+k*Math.PI/12;let md=Math.PI*2;
+      for(const g of angs.concat(chosen)){const d=Math.abs(((t-g)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI);md=Math.min(md,d);}
+      if(md>bs+1e-6){bs=md;best=t;}}chosen.push(best);}return chosen;}
+function drawMol(){
+  let s='';
+  if(!atoms.length){s+=`<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-size="15">Tap an element above to drop an atom here</text>`;}
+  for(const b of bonds){const A=atomById(b.a),B=atomById(b.b);const dx=B.x-A.x,dy=B.y-A.y,d=Math.max(.1,Math.hypot(dx,dy));const nx=-dy/d,ny=dx/d;
+    const offs=b.o===1?[0]:b.o===2?[-3.6,3.6]:[-6.5,0,6.5];
+    s+=`<g data-bond="${b.id}" style="cursor:pointer"><line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="transparent" stroke-width="20"/>`;
+    for(const o of offs)s+=`<line x1="${A.x+nx*o}" y1="${A.y+ny*o}" x2="${B.x+nx*o}" y2="${B.y+ny*o}" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>`;
+    s+='</g>';}
+  for(const a of atoms){const E=ELEM[a.el];const r=a.el==='H'?14:19;const inf=atomInfo[a.id]||{L:0,fc:0};const isSel=a.id===sel;
+    s+=`<g data-atom="${a.id}" tabindex="0" role="button" aria-label="${E.name} atom${isSel?', selected':''}" transform="translate(${a.x.toFixed(1)},${a.y.toFixed(1)})" style="cursor:grab">`;
+    if(isSel)s+=`<circle r="${r+7}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="5 4"/>`;
+    s+=`<circle r="${r}" fill="${E.color}" stroke="var(--atom-stroke)" stroke-width="1.5"/>`;
+    s+=`<circle r="${r*.55}" cx="${-r*.3}" cy="${-r*.35}" fill="#fff" opacity=".18"/>`;
+    s+=`<text text-anchor="middle" dy=".35em" font-family="var(--font-display)" font-weight="700" font-size="${a.el.length>1?13:15}" fill="${E.text}">${a.el}</text>`;
+    const pairs=Math.floor(inf.L/2),single=inf.L%2;const ang=lpAngles(a,pairs+single);
+    ang.forEach((t,i)=>{const R=r+6.5;const cx=Math.cos(t)*R,cy=Math.sin(t)*R;const px=-Math.sin(t)*3.3,py=Math.cos(t)*3.3;
+      if(i<pairs)s+=`<circle cx="${cx+px}" cy="${cy+py}" r="2.1" fill="var(--ink)"/><circle cx="${cx-px}" cy="${cy-py}" r="2.1" fill="var(--ink)"/>`;
+      else s+=`<circle cx="${cx}" cy="${cy}" r="2.6" fill="var(--warn)"/>`;});
+    if(inf.fc){const t=inf.fc>0?(inf.fc>1?inf.fc+'+':'+'):(inf.fc<-1?(-inf.fc)+'−':'−');
+      s+=`<g transform="translate(${r*.95},${-r*.95})"><circle r="8" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.2"/><text text-anchor="middle" dy=".35em" font-size="11" font-weight="700" fill="var(--accent)">${t}</text></g>`;}
+    s+='</g>';}
+  for(const c of comps){if(c.atoms.length<1)continue;let x0=Infinity,x1=-Infinity,y1=-Infinity;c.atoms.forEach(a=>{x0=Math.min(x0,a.x);x1=Math.max(x1,a.x);y1=Math.max(y1,a.y);});
+    const y=Math.min(H-8,y1+34);const col=c.status==='open'?'var(--warn)':'var(--muted)';
+    s+=`<text x="${(x0+x1)/2}" y="${y}" text-anchor="middle" font-size="12.5" fill="${col}" style="pointer-events:none">${c.formula}${c.lib||c.atoms.length===1?' · '+c.name:''}</text>`;}
+  svg.innerHTML=s;
+  $('#delBtn').disabled=sel==null;
+}
+
+/* pointer handling */
+let down=null;
+function svgPt(e){const r=svg.getBoundingClientRect();return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};}
+svg.addEventListener('pointerdown',e=>{const t=e.target.closest('[data-atom],[data-bond]');const p=svgPt(e);
+  down={kind:t?(t.dataset.atom?'atom':'bond'):'empty',id:t?+(t.dataset.atom||t.dataset.bond):null,x:p.x,y:p.y,moved:false,pid:e.pointerId};
+  if(down.kind==='atom'){try{svg.setPointerCapture(e.pointerId);}catch(_){}}});
+svg.addEventListener('pointermove',e=>{if(!down||down.kind!=='atom')return;const p=svgPt(e);
+  if(!down.moved&&Math.hypot(p.x-down.x,p.y-down.y)>6){down.moved=true;pushHist();}
+  if(down.moved){const a=atomById(down.id);const [x,y]=clampPt(p.x,p.y);a.x=x;a.y=y;drawMol();}});
+const endPtr=e=>{if(!down)return;const d=down;down=null;
+  if(d.moved){save();return;}
+  if(d.kind==='atom')tapAtom(d.id);else if(d.kind==='bond')cycleBond(d.id);else{if(sel!=null){sel=null;drawMol();}}};
+svg.addEventListener('pointerup',endPtr);svg.addEventListener('pointercancel',()=>{down=null;});
+svg.addEventListener('keydown',e=>{const t=e.target.closest('[data-atom]');if(t&&(e.key==='Enter'||e.key===' ')){e.preventDefault();tapAtom(+t.dataset.atom);}});
+function tapAtom(id){if(sel==null){sel=id;drawMol();}else if(sel===id){sel=null;drawMol();}else{const s=sel;sel=null;tryBond(s,id);drawMol();}}
+document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea'))return;
+  if((e.key==='Delete'||e.key==='Backspace')&&sel!=null){e.preventDefault();removeAtom();}
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
+  else if(e.key==='Escape'&&sel!=null){sel=null;drawMol();}});
+
+/* ---------------- Spectrum engine ---------------- */
+const L0=190,L1=910,STEP=0.025,NG=Math.round((L1-L0)/STEP)+1;
+function rotLines(lh,tot,deg,w){const N=36,out=[];let sum=0;const ws=[];
+  for(let k=0;k<N;k++){const v=(k+1)*Math.exp(-Math.pow(k/11,2));ws.push(v);sum+=v;}
+  for(let k=0;k<N;k++){const x=k/(N-1);let off;
+    if(deg==='q')off=(k%2?-1:1)*w*.5*Math.pow(x,1.8);else off=(deg==='v'?-1:1)*w*Math.pow(x,1.6);
+    out.push([lh+off,tot*ws[k]/sum]);}return out;}
+function weights(species,p){
+  const d=.1+.8*p,ion=.04+.96*p*p,frag=.35+1.3*d*(1-d);const Wt={};const add=(k,w)=>{if(EM[k]&&w>0)Wt[k]=(Wt[k]||0)+w;};
+  const n=species.length;if(!n)return Wt;const f=1/n;const A={};
+  for(const c of species){const na=c.atoms.length;
+    if(na===1){const el=c.atoms[0].el;add(el,f*1.2);A[el]=(A[el]||0)+f*.3;continue;}
+    const diat=na===2,nb=c.bondList.length||1;const g={};c.bondList.forEach(b=>g[b.key]=(g[b.key]||0)+1);
+    for(const k in g){const w=diat?f*(1-.7*d):f*(g[k]/nb)*frag*1.4;(BONDEM[k]||[]).forEach(e=>add(e,w));if(diat&&IONEM[k])add(IONEM[k],f*ion);}
+    const strong=diat&&g['N-N']?.35:(diat&&g['C-O']?.5:1);
+    for(const el in c.counts){const m=c.counts[el];add(el,f*(m/na)*d*1.5*strong);A[el]=(A[el]||0)+f*m*d*strong;}
+    if(c.lib&&c.lib.extra)for(const [e,mode] of c.lib.extra)add(e,mode==='ion'?f*ion*1.2:mode==='frag'?f*frag*.5:f*(1-.6*d));
+    if(c.nh2&&!(c.lib&&c.lib.f==='NH₂'))add('NH2',f*frag*.6);}
+  const tot=Object.values(A).reduce((a,b)=>a+b,0);
+  if(tot>0)for(const k in BONDEM){const [x,y]=k.split('-');if(A[x]&&A[y]){const w=(x===y?.12:.25)*A[x]*A[y]/tot*d;BONDEM[k].forEach(e=>add(e,w));}}
+  return Wt;}
+function computeSpectrum(species,p,res){
+  const Wt=weights(species,p);const ionF=.04+.96*p*p;const lines=[],feats=[],conts=[];
+  for(const k in Wt){const w=Wt[k];if(w<1e-4)continue;const E=EM[k];
+    if(E.kind==='atom'){for(const L of E.lines){const I=w*E.s*L[1]/100*(L[3]?ionF*1.5:1);if(I<1e-5)continue;lines.push([L[0],I]);feats.push({l:L[0],area:I,em:k,line:L,type:'line'});}}
+    else if(E.kind==='mlines'){for(const L of E.lines){const I=w*E.s*L[1]/100;lines.push([L[0],I]);if(L[1]>=30)feats.push({l:L[0],area:I,em:k,line:L,type:'mline'});}}
+    else if(E.kind==='band'){for(const Hd of E.heads){const o=Hd[3]||{};const tot=w*E.s*Hd[1]/100*3;const rl=rotLines(Hd[0],tot,o.deg||E.deg,E.w);rl.forEach(r=>lines.push(r));feats.push({l:Hd[0],em:k,head:Hd,rl,type:'band'});}}
+    else if(E.kind==='cont'){conts.push([E,w]);feats.push({l:E.peak,em:k,type:'cont',amp:w*E.s*E.amp});}}
+  const spec=new Float32Array(NG);const sig=Math.max(res,.04)/2.3548;const half=Math.ceil(4*sig/STEP);const norm=1/(sig*Math.sqrt(2*Math.PI));
+  const kern=new Float32Array(2*half+1);for(let i=-half;i<=half;i++){const x=i*STEP;kern[i+half]=norm*Math.exp(-x*x/(2*sig*sig));}
+  for(const [l,I] of lines){const c=Math.round((l-L0)/STEP);const a=Math.max(0,c-half),b=Math.min(NG-1,c+half);for(let j=a;j<=b;j++)spec[j]+=I*kern[j-c+half];}
+  for(const [E,w] of conts){const A=w*E.s*E.amp;for(let j=0;j<NG;j++){const v=E.f(L0+j*STEP);if(v>1e-4)spec[j]+=A*v;}}
+  for(const f of feats){if(f.type==='line'||f.type==='mline')f.I=f.area*norm;
+    else if(f.type==='band'){let best=0;for(let t=0;t<=6;t++){const x0=f.l+((((f.head[3]&&f.head[3].deg)||EM[f.em].deg)==='r')?1:-1)*t*sig*.5;let s=0;for(const [l,I] of f.rl){const dx=l-x0;s+=I*norm*Math.exp(-dx*dx/(2*sig*sig));}best=Math.max(best,s);}f.I=best;delete f.rl;}
+    else f.I=f.amp;
+    f.id=f.em+':'+f.l;}
+  return {spec,feats,Wt};}
+const idxOf=l=>Math.max(0,Math.min(NG-1,Math.round((l-L0)/STEP)));
+function rangeLim(){return ui.range==='vis'?[380,750]:[200,900];}
+function maxIn(spec,lo,hi){let m=0;for(let j=idxOf(lo);j<=idxOf(hi);j++)if(spec[j]>m)m=spec[j];return m;}
+function colMax(spec,la,lb){let a=idxOf(Math.min(la,lb)),b=idxOf(Math.max(la,lb));let m=0;for(let j=a;j<=b;j++)if(spec[j]>m)m=spec[j];return m;}
+
+/* colour helpers */
+function wlRGB(w){let r=0,g=0,b=0;
+  if(w>=380&&w<440){r=-(w-440)/60;b=1;}else if(w>=440&&w<490){g=(w-440)/50;b=1;}else if(w>=490&&w<510){g=1;b=-(w-510)/20;}
+  else if(w>=510&&w<580){r=(w-510)/70;g=1;}else if(w>=580&&w<645){r=1;g=-(w-645)/65;}else if(w>=645&&w<=780){r=1;}
+  let f=0;if(w>=380&&w<420)f=.3+.7*(w-380)/40;else if(w>=420&&w<=700)f=1;else if(w>700&&w<=780)f=.3+.7*(780-w)/80;
+  const gm=x=>x<=0?0:Math.pow(x*f,.8);return [gm(r),gm(g),gm(b)];}
+const isVis=l=>l>=380&&l<=750;
+const rgbStr=(c,a=1)=>`rgba(${Math.round(c[0]*255)},${Math.round(c[1]*255)},${Math.round(c[2]*255)},${a})`;
+function gpw(x,m,s1,s2){const t=(x-m)/(x<m?s1:s2);return Math.exp(-.5*t*t);}
+function cmf(l){return [1.056*gpw(l,599.8,37.9,31)+.362*gpw(l,442,16,26.7)-.065*gpw(l,501.1,20.4,26.2),.821*gpw(l,568.8,46.9,40.5)+.286*gpw(l,530.9,16.3,31.1),1.217*gpw(l,437,11.8,36)+.681*gpw(l,459,26,13.8)];}
+function glowColor(spec){let X=0,Y=0,Z=0;for(let l=380;l<=780;l+=.5){const v=spec[idxOf(l)];if(!v)continue;const c=cmf(l);X+=v*c[0];Y+=v*c[1];Z+=v*c[2];}
+  if(X+Y+Z<=0)return null;let r=3.2406*X-1.5372*Y-.4986*Z,g=-.9689*X+1.8758*Y+.0415*Z,b=.0557*X-.204*Y+1.057*Z;const mn=Math.min(r,g,b);if(mn<0){r-=mn;g-=mn;b-=mn;}
+  const mx=Math.max(r,g,b);const enc=v=>{v=v/mx;return v<=.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-.055;};return [enc(r),enc(g),enc(b)];}
+
+/* ---------------- Rendering the spectrometer ---------------- */
+function sizeCanvas(cv){const dpr=window.devicePixelRatio||1;const w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return {ctx,w,h};}
+const CSSV=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function drawStrip(cv,pad){const {ctx,w,h}=sizeCanvas(cv);ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);if(!SP||!SP.maxv)return;
+  const [lo,hi]=rangeLim();const x0=pad?pad.l:0,x1=w-(pad?pad.r:0);const pw=x1-x0;
+  for(let x=0;x<pw;x++){const la=lo+(hi-lo)*x/pw,lb=lo+(hi-lo)*(x+1)/pw;const v=Math.min(1,colMax(SP.spec,la,lb)/SP.maxv);if(v<.004)continue;const br=Math.pow(v,.5);
+    const lm=(la+lb)/2;let c=isVis(lm)?wlRGB(lm):[.42,.44,.55];if(!isVis(lm))c=c.map(q=>q*.7);ctx.fillStyle=rgbStr(c.map(q=>Math.min(1,q*br*1.25)));ctx.fillRect(x0+x,0,1.2,h);}
+  if(ui.range==='full'&&h>30){ctx.font='11px "JetBrains Mono", monospace';ctx.fillStyle='rgba(200,208,228,.55)';const X=l=>x0+(l-lo)/(hi-lo)*pw;
+    ctx.fillText('UV',X(205),13);ctx.fillText('IR',X(880),13);ctx.strokeStyle='rgba(200,208,228,.25)';ctx.setLineDash([3,3]);[380,750].forEach(l=>{ctx.beginPath();ctx.moveTo(X(l)+.5,0);ctx.lineTo(X(l)+.5,h);ctx.stroke();});ctx.setLineDash([]);}}
+const GM={l:42,r:12,t:10,b:28};
+function drawGraph(){
+  const cv=$('#graph');const {ctx,w,h}=sizeCanvas(cv);const [lo,hi]=rangeLim();
+  const ink=CSSV('--scope-ink'),muted=CSSV('--scope-muted'),lineC=CSSV('--scope-line'),bg=CSSV('--scope-2'),acc=CSSV('--scope-accent'),gold=CSSV('--gold');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+  const els=ui.ref&&SP?Object.keys(SP.elements):[];const refH=els.length?els.length*11+6:0;
+  const px0=GM.l,px1=w-GM.r,py0=GM.t+refH,py1=h-GM.b,pw=px1-px0,ph=py1-py0;
+  const X=l=>px0+(l-lo)/(hi-lo)*pw,Lx=x=>lo+(x-px0)/pw*(hi-lo);
+  // UV / IR shading
+  ctx.fillStyle='rgba(140,150,180,.07)';if(lo<380)ctx.fillRect(X(lo),py0,X(380)-X(lo),ph);if(hi>750)ctx.fillRect(X(750),py0,X(hi)-X(750),ph);
+  // grid
+  ctx.font='11px "JetBrains Mono", monospace';ctx.textAlign='center';ctx.lineWidth=1;
+  const step=ui.range==='vis'?25:50,lstep=ui.range==='vis'?50:100;
+  for(let l=Math.ceil(lo/step)*step;l<=hi;l+=step){const x=Math.round(X(l))+.5;ctx.strokeStyle=lineC;ctx.globalAlpha=l%lstep?.45:1;ctx.beginPath();ctx.moveTo(x,py0);ctx.lineTo(x,py1);ctx.stroke();ctx.globalAlpha=1;
+    if(l%lstep===0){ctx.fillStyle=muted;if(l+lstep>hi){ctx.textAlign='right';ctx.fillText(l+' nm',Math.min(x+14,w-2),h-9);ctx.textAlign='center';}else ctx.fillText(l,x,h-9);}}
+  ctx.textAlign='right';for(let k=0;k<=4;k++){const y=Math.round(py1-k/4*ph*.92)+.5;ctx.strokeStyle=lineC;ctx.globalAlpha=.5;ctx.beginPath();ctx.moveTo(px0,y);ctx.lineTo(px1,y);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle=muted;ctx.fillText((k/4).toFixed(2),px0-6,y+4);}
+  ctx.save();ctx.translate(11,py0+ph/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillStyle=muted;ctx.fillText('relative intensity',0,0);ctx.restore();
+  
+  // rainbow under axis
+  for(let x=Math.max(px0,X(380));x<Math.min(px1,X(750));x++){ctx.fillStyle=rgbStr(wlRGB(Lx(x+.5)));ctx.fillRect(x,py1+1,1.2,4);}
+  if(ui.range==='full'){ctx.fillStyle=muted;ctx.textAlign='left';ctx.fillText('UV',X(lo)+6,py0+12);ctx.textAlign='right';ctx.fillText('IR',X(hi)-6,py0+12);}
+  if(!SP||!SP.maxv){ctx.fillStyle=muted;ctx.textAlign='center';ctx.font='14px "Atkinson Hyperlegible", sans-serif';ctx.fillText(atoms.length?'No emission in this range':'Empty tube: build a molecule to see its spectrum',px0+pw/2,py0+ph/2);}
+  else{
+    const ys=[];const s=.92*ph/SP.maxv;
+    for(let x=0;x<pw;x++){const la=Lx(px0+x),lb=Lx(px0+x+1);const v=colMax(SP.spec,la,lb);ys.push(Math.max(py0,py1-v*s));const lm=(la+lb)/2;
+      ctx.fillStyle=isVis(lm)?rgbStr(wlRGB(lm),.88):'rgba(150,160,190,.5)';ctx.fillRect(px0+x,ys[x],1.2,py1-ys[x]);}
+    ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1;ctx.beginPath();ys.forEach((y,x)=>x?ctx.lineTo(px0+x+.5,y):ctx.moveTo(px0+.5,y));ctx.stroke();
+  }
+  // mystery overlay
+  if(mystery&&mystery.sp&&mystery.sp.maxv){const M=mystery.sp;const s=.92*ph/maxIn(M.spec,lo,hi);ctx.strokeStyle=gold;ctx.lineWidth=1.4;ctx.setLineDash([5,3]);ctx.beginPath();
+    for(let x=0;x<pw;x++){const v=colMax(M.spec,Lx(px0+x),Lx(px0+x+1));const y=Math.max(py0,py1-v*s);x?ctx.lineTo(px0+x+.5,y):ctx.moveTo(px0+.5,y);}ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=gold;ctx.textAlign='right';ctx.font='600 11px "JetBrains Mono", monospace';ctx.fillText('- - mystery tube',px1-4,py0+12+(ui.range==='full'?12:0));}
+  // element reference ticks
+  if(els.length){ctx.font='10px "JetBrains Mono", monospace';els.forEach((el,i)=>{const y=GM.t+i*11+3;ctx.fillStyle=ELEM[el].color;ctx.textAlign='right';ctx.fillText(el,px0-6,y+8);
+      for(const L of EM[el].lines){if(L[1]<12||L[0]<lo||L[0]>hi)continue;const x=Math.round(X(L[0]))+.5;ctx.strokeStyle=ELEM[el].color;ctx.globalAlpha=L[3]?.5:1;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+9);ctx.stroke();ctx.globalAlpha=1;}});}
+  // labels
+  if(SP&&SP.maxv&&ui.labels){const fs=SP.feats.filter(f=>f.l>=lo&&f.l<=hi&&f.I/SP.maxv>.07).sort((a,b)=>b.I-a.I);const placed=[];ctx.font='600 10.5px "JetBrains Mono", monospace';ctx.textAlign='center';
+    for(const f of fs){if(placed.length>=10)break;const x=X(f.l);if(placed.some(p=>Math.abs(p-x)<46))continue;placed.push(x);const y=Math.max(py0+22,py1-Math.min(1,f.I/SP.maxv)*.92*ph-8);
+      ctx.fillStyle='rgba(10,13,20,.7)';const t=featLabel(f);const tw=ctx.measureText(t).width+6;ctx.fillRect(x-tw/2,y-11,tw,13);ctx.fillStyle=ink;ctx.fillText(t,x,y-1);}}
+  // selection + hover
+  if(ui.selFeat&&SP){const f=SP.feats.find(q=>q.id===ui.selFeat);if(f&&f.l>=lo&&f.l<=hi){const x=Math.round(X(f.l))+.5;ctx.strokeStyle=acc;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,py0);ctx.lineTo(x,py1);ctx.stroke();
+    ctx.fillStyle=acc;ctx.beginPath();ctx.moveTo(x,py1+1);ctx.lineTo(x-5,py1+9);ctx.lineTo(x+5,py1+9);ctx.fill();}}
+  if(ui.hoverL!=null&&ui.hoverL>=lo&&ui.hoverL<=hi){const x=Math.round(X(ui.hoverL))+.5;ctx.strokeStyle='rgba(255,255,255,.35)';ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(x,py0);ctx.lineTo(x,py1);ctx.stroke();ctx.setLineDash([]);
+    const t=`${ui.hoverL.toFixed(1)} nm · ${(HC/ui.hoverL).toFixed(2)} eV`;ctx.font='11px "JetBrains Mono", monospace';const tw=ctx.measureText(t).width+10;let bx=x+8;if(bx+tw>px1)bx=x-8-tw;
+    ctx.fillStyle='rgba(5,7,12,.85)';ctx.fillRect(bx,py0+18,tw,18);ctx.fillStyle=ink;ctx.textAlign='left';ctx.fillText(t,bx+5,py0+31);}
+  graphGeom={px0,px1,lo,hi,Lx};
+}
+let graphGeom=null;
+function featLabel(f){const E=EM[f.em];if(f.type==='line'){if(f.line[4])return f.line[4];return `${f.em}${f.line[3]?' II':' I'} ${f.l.toFixed(0)}`;}
+  if(f.type==='cont')return `${E.sp} cont.`;return `${E.sp} ${f.l.toFixed(f.l%1&&f.type==='band'?1:0)}`;}
+function pickFeature(l){if(!SP)return null;const [lo,hi]=rangeLim();const tol=Math.max(1.2,(hi-lo)/120);let best=null,bs=0;
+  for(const f of SP.feats){if(f.l<lo||f.l>hi)continue;const In=f.I/SP.maxv;let d=Math.abs(f.l-l);
+    if(f.type==='band'){const E=EM[f.em];const dg=(f.head[3]&&f.head[3].deg)||E.deg;if(dg==='v'&&l<f.l&&l>f.l-E.w*1.3)d*=.3;if(dg==='r'&&l>f.l&&l<f.l+E.w*1.3)d*=.3;}
+    if(f.type==='cont')d=Math.max(0,d-40);const sc=In*Math.exp(-Math.pow(d/tol,2));if(sc>bs){bs=sc;best=f;}}
+  return bs>.004?best:null;}
+const gcv=$('#graph');
+gcv.addEventListener('pointermove',e=>{if(e.pointerType==='touch'||!graphGeom)return;const r=gcv.getBoundingClientRect();const x=e.clientX-r.left;if(x<graphGeom.px0||x>graphGeom.px1){ui.hoverL=null;}else ui.hoverL=graphGeom.Lx(x);drawGraph();});
+gcv.addEventListener('pointerleave',()=>{ui.hoverL=null;drawGraph();});
+gcv.addEventListener('click',e=>{if(!graphGeom)return;const r=gcv.getBoundingClientRect();const x=e.clientX-r.left;const f=pickFeature(graphGeom.Lx(Math.max(graphGeom.px0,Math.min(graphGeom.px1,x))));if(f){ui.selFeat=f.id;drawGraph();renderDetail();renderTable();}});
+
+function drawTube(){const c=SP&&SP.maxv?glowColor(SP.spec):null;const col=c?rgbStr(c):'transparent';const core=c?rgbStr(c.map(v=>v+(1-v)*.45)):'transparent';
+  $('#tube').innerHTML=`<defs><filter id="tb" x="-20%" y="-80%" width="140%" height="260%"><feGaussianBlur stdDeviation="7"/></filter><filter id="tb2"><feGaussianBlur stdDeviation="2"/></filter>
+   <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".08"/></linearGradient>
+   <linearGradient id="el" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9ced8"/><stop offset="1" stop-color="#6c7383"/></linearGradient></defs>
+   <rect x="34" y="14" width="192" height="42" rx="21" fill="${col}" opacity=".55" filter="url(#tb)"/>
+   <rect x="22" y="19" width="216" height="32" rx="16" fill="#0d1220" stroke="#3a4560" stroke-width="1.2"/>
+   <rect x="38" y="25" width="184" height="20" rx="10" fill="${col}" opacity=".9" filter="url(#tb2)"/>
+   <rect x="46" y="31" width="168" height="8" rx="4" fill="${core}" opacity=".9" filter="url(#tb2)"/>
+   <rect x="22" y="19" width="216" height="32" rx="16" fill="url(#gl)"/>
+   <rect x="25" y="28" width="16" height="14" rx="3" fill="url(#el)"/><rect x="219" y="28" width="16" height="14" rx="3" fill="url(#el)"/>
+   <line x1="4" y1="35" x2="25" y2="35" stroke="#8a93a6" stroke-width="2"/><line x1="235" y1="35" x2="256" y2="35" stroke="#8a93a6" stroke-width="2"/>
+   <text x="8" y="66" font-size="9" fill="#8e99b0" font-family="JetBrains Mono, monospace">−</text><text x="246" y="66" font-size="9" fill="#8e99b0" font-family="JetBrains Mono, monospace">+</text>`;
+  $('#tubeCap').textContent=c?'Glow your eye would see (computed from the visible spectrum)':(atoms.length?'No visible glow: this tube emits only UV/IR':'Tube empty');}
+
+/* detail panel */
+function sci(x,p=3){const e=Math.floor(Math.log10(Math.abs(x)));const m=x/Math.pow(10,e);return `${m.toFixed(p)} × 10${sup(e)}`;}
+function region(l){if(l<380)return 'Ultraviolet (invisible)';if(l>750)return 'Near-infrared (invisible)';const n=[[450,'violet'],[495,'blue'],[570,'green'],[590,'yellow'],[620,'orange'],[751,'red']].find(q=>l<q[0]);return 'Visible: '+n[1];}
+function featInfo(f){const E=EM[f.em];const o=(f.head&&f.head[3])||{};
+  if(f.type==='line'){const L=f.line;const sp=f.em+(L[3]?' II':' I');return {title:(L[4]?L[4]+' · ':'')+(f.em==='H'?'Hydrogen Balmer line':`${ELEM[f.em].name} ${L[3]?'ion':'atom'} line`),sys:`${sp} · atomic line`,trans:L[2],kind:'atom'};}
+  if(f.type==='mline'){return {title:`${E.sp} line (${f.line[2]==='many-line'?'many-line spectrum':'Fulcher-α Q branch'})`,sys:E.name,trans:`${E.up}${f.line[2]!=='many-line'?` (v′ = ${f.line[2].split(',')[0]})`:''} → ${E.lo}${f.line[2]!=='many-line'?` (v″ = ${f.line[2].split(',')[1]})`:''}`,kind:'mol',v:f.line[2]};}
+  if(f.type==='cont')return {title:E.name,sys:`${E.sp} · continuum`,trans:`${E.up} → ${E.lo}`,kind:'cont'};
+  const v=f.head[2];const vv=v.includes(',')?v.split(','):null;const up=o.up||E.up,lo=o.lo||E.lo;
+  return {title:`${o.name||E.name}`,sys:`${E.sp} · ${vv?`(${v}) band head`:'band'} · shaded toward ${((o.deg||E.deg)==='v')?'shorter λ (violet)':((o.deg||E.deg)==='r')?'longer λ (red)':'both sides (strong Q branch)'}`,
+    trans:vv?`${up} (v′ = ${vv[0]}) → ${lo} (v″ = ${vv[1]})`:`${up} → ${lo}`,kind:'mol',v};}
+function renderDetail(){const box=$('#detail');
+  if(!SP||!SP.maxv){box.innerHTML=`<div><h4>No light yet</h4><p class="sys">Build a molecule (or load a preset) and its emission will appear here.</p></div><div></div>`;return;}
+  let f=SP.feats.find(q=>q.id===ui.selFeat);const [lo,hi]=rangeLim();
+  if(!f||f.l<lo||f.l>hi){f=SP.feats.filter(q=>q.l>=lo&&q.l<=hi).sort((a,b)=>b.I-a.I)[0];if(!f){box.innerHTML='<div><h4>Nothing in this range</h4><p class="sys">Switch to the full 200–900 nm range.</p></div><div></div>';return;}ui.selFeat=f.id;}
+  const I=featInfo(f);const l=f.l;const EJ=H_*C_/(l*1e-9),eV=HC/l,nu=C_/(l*1e-9),wn=1e7/l,kJ=EJ*NA/1000;
+  const swatch=isVis(l)?`<span class="swatch" style="background:${rgbStr(wlRGB(l))}"></span>`:'';
+  let ryd='';if(f.em==='H'&&f.type==='line'){const n=+f.line[2].match(/n = (\d+)/)[1];const inv=1.09678e7*(1/4-1/(n*n));ryd=`<br><span class="c">Rydberg check: 1/λ = R<sub>H</sub>(1/2² − 1/${n}²) = ${sci(inv,4)} m⁻¹ → λ<sub>vac</sub> = ${(1e9/inv).toFixed(1)} nm (air value ${l.toFixed(1)} nm)</span>`;}
+  const bt=new Set();comps.forEach(c=>c.bondList.forEach(b=>bt.add(b.key+b.o)));
+  const bc=[...bt].filter(k=>BE[k]).sort((a,b)=>BE[a]-BE[b]).map(k=>{const [p,o]=[k.slice(0,-1),+k.slice(-1)];const [x,y]=p.split('-');const yes=kJ>=BE[k];return `<span class="bc${yes?' yes':''}">${x}${BSYM[o]}${y} ${BE[k]} kJ/mol ${yes?'· could break':'· too weak'}</span>`;}).join('');
+  box.innerHTML=`<div>
+    <h4>${I.title}</h4><p class="sys">${I.sys}</p>
+    <dl class="kv"><dt>Wavelength</dt><dd>${swatch}${l.toFixed(2)} nm · ${region(l)}</dd>
+      <dt>Transition</dt><dd>${I.trans}</dd>
+      <dt>Photon energy</dt><dd>${eV.toFixed(3)} eV · ${kJ.toFixed(0)} kJ/mol of photons</dd>
+      <dt>Frequency</dt><dd>${sci(nu)} Hz · ν̃ = ${Math.round(wn).toLocaleString()} cm⁻¹</dd></dl>
+    <div class="calc">E = hc/λ = (6.626 × 10⁻³⁴ J·s)(2.998 × 10⁸ m/s) / (${l.toFixed(1)} × 10⁻⁹ m)<br>&nbsp;&nbsp;= ${sci(EJ)} J = ${eV.toFixed(3)} eV<br>
+    E × N<sub>A</sub> = ${sci(EJ)} J × 6.022 × 10²³ mol⁻¹ = ${kJ.toFixed(1)} kJ/mol${ryd}</div>
+    ${bc?`<div class="bonds-cmp" aria-label="Bond energies compared with this photon">${bc}</div>`:''}
+    <p class="why">${EM[f.em].why}</p></div>
+    <div class="diag">${diagram(f,I)}</div>`;}
+
+function diagram(f,I){const W2=270,H2=230;const lc=isVis(f.l)?rgbStr(wlRGB(f.l)):'#aab3c8';const ink='#e3e8f3',mut='#8e99b0';
+  let s=`<svg viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Energy level diagram"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${lc}"/></marker></defs>`;
+  if(f.type==='line'&&f.em==='H'){const n=+f.line[2].match(/n = (\d+)/)[1];    const yE=E=>E<-3.5?210:190-(E+3.4)/3.4*165;
+    for(let k=1;k<=8;k++){const E=-13.6/(k*k);const y=yE(E);const hi=k===n||k===2;s+=`<line x1="60" x2="250" y1="${y}" y2="${y}" stroke="${hi?ink:mut}" stroke-width="${hi?1.6:.8}"/>`;
+      if(k<=5||k===n)s+=`<text x="54" y="${y+4}" text-anchor="end" font-size="10" fill="${hi?ink:mut}" font-family="JetBrains Mono, monospace">n=${k}</text><text x="252" y="${y-3}" text-anchor="end" font-size="9" fill="${mut}" font-family="JetBrains Mono, monospace">${E.toFixed(2)} eV</text>`;}
+    s+=`<line x1="60" x2="250" y1="25" y2="25" stroke="${mut}" stroke-dasharray="3 3"/><text x="54" y="29" text-anchor="end" font-size="10" fill="${mut}" font-family="JetBrains Mono, monospace">n=∞</text>`;
+    s+=`<text x="155" y="200" text-anchor="middle" font-size="9" fill="${mut}" font-family="JetBrains Mono, monospace">≈ (n=1 far below, −13.6 eV)</text>`;
+    s+=`<line x1="150" x2="150" y1="${yE(-13.6/(n*n))}" y2="${yE(-3.4)-2}" stroke="${lc}" stroke-width="2.5" marker-end="url(#ah)"/></svg><p>Bohr levels E<sub>n</sub> = −13.6 eV / n² (drawn to scale above n = 2)</p>`;return s;}
+  if(f.type==='line'){const [u,l]=I.trans.split('→').map(t=>t.trim().replace(/\(.*\)/,'').trim());const eV=HC/f.l;
+    s+=`<line x1="40" x2="240" y1="205" y2="205" stroke="${mut}"/><text x="40" y="220" font-size="10" fill="${mut}" font-family="JetBrains Mono, monospace">ground state</text>
+      <line x1="40" x2="240" y1="150" y2="150" stroke="${ink}" stroke-width="1.6"/><text x="40" y="144" font-size="10.5" fill="${ink}" font-family="JetBrains Mono, monospace">${l}</text>
+      <line x1="40" x2="240" y1="45" y2="45" stroke="${ink}" stroke-width="1.6"/><text x="40" y="39" font-size="10.5" fill="${ink}" font-family="JetBrains Mono, monospace">${u}</text>
+      <line x1="170" x2="170" y1="47" y2="146" stroke="${lc}" stroke-width="2.5" marker-end="url(#ah)"/><text x="178" y="102" font-size="11" fill="${ink}" font-family="JetBrains Mono, monospace">ΔE = ${eV.toFixed(2)} eV</text></svg>
+      <p>Schematic: one electronic jump, one sharp line</p>`;return s;}
+  // molecular: two potential curves
+  const rx=r=>20+(r-.45)/(2.6-.45)*240,ey=E=>212-E/2.25*195;
+  const morse=(r,T,D,a,re)=>T+D*Math.pow(1-Math.exp(-a*(r-re)),2);
+  const lo={T:0,D:1.25,a:2.1,re:1.0,w:.15,x:.006},up={T:1.15,D:.8,a:1.9,re:1.18,w:.11,x:.005};
+  const path=(P,rep)=>{let d='';for(let r=.55;r<=2.6;r+=.02){const E=rep?Math.min(2.2,P.T+1.2*Math.exp(-2.4*(r-.75))):morse(r,P.T,P.D,P.a,P.re);if(E>2.2)continue;d+=(d?'L':'M')+rx(r).toFixed(1)+','+ey(E).toFixed(1);}return d;};
+  const lev=(P,v)=>P.T+P.w*(v+.5)-P.x*(v+.5)*(v+.5);
+  const turn=(P,E)=>{let a=null,b=null;for(let r=.5;r<=2.6;r+=.005){const V=morse(r,P.T,P.D,P.a,P.re);if(V<=E){if(a==null)a=r;b=r;}}return [a,b];};
+  const rep=f.em==='H2C';const loP=rep?{T:.45}:lo;
+  const vv=(I.v&&I.v.includes(','))?I.v.split(',').map(Number):null;
+  s+=`<path d="${path(up)}" fill="none" stroke="${ink}" stroke-width="1.5"/><path d="${path(loP,rep)}" fill="none" stroke="${ink}" stroke-width="1.5"/>`;
+  for(let v=0;v<7;v++){const E=lev(up,v);if(E>up.T+up.D*.92)break;const [a,b]=turn(up,E);const h=vv&&v===vv[0];s+=`<line x1="${rx(a)}" x2="${rx(b)}" y1="${ey(E)}" y2="${ey(E)}" stroke="${h?lc:mut}" stroke-width="${h?2:.8}"/>`;}
+  if(!rep)for(let v=0;v<9;v++){const E=lev(lo,v);const [a,b]=turn(lo,E);const h=vv&&v===vv[1];s+=`<line x1="${rx(a)}" x2="${rx(b)}" y1="${ey(E)}" y2="${ey(E)}" stroke="${h?lc:mut}" stroke-width="${h?2:.8}"/>`;}
+  const v1=vv?vv[0]:0,v2=vv?vv[1]:2;const Eu=lev(up,Math.min(v1,6));const [ua,ub]=turn(up,Eu);const rr=(ua+ub)/2;
+  const El=rep?Math.min(2.2,loP.T+1.2*Math.exp(-2.4*(rr-.75))):lev(lo,Math.min(v2,8));
+  s+=`<line x1="${rx(rr)}" x2="${rx(rr)}" y1="${ey(Eu)+2}" y2="${ey(El)-3}" stroke="${lc}" stroke-width="2.5" marker-end="url(#ah)"/>`;
+  const clean=t=>t.replace(/<sub>(.*?)<\/sub>/g,'$1');
+  s+=`<text x="262" y="${ey(up.T+up.D)+14}" text-anchor="end" font-size="10.5" fill="${ink}" font-family="JetBrains Mono, monospace">${clean((f.head&&f.head[3]&&f.head[3].up)||EM[f.em].up)}</text>`;
+  s+=`<text x="262" y="${ey(rep?.6:lo.D)+(rep?0:14)}" text-anchor="end" font-size="10.5" fill="${ink}" font-family="JetBrains Mono, monospace">${clean((f.head&&f.head[3]&&f.head[3].lo)||EM[f.em].lo)}</text>`;
+  s+=`<text x="${rx(.6)}" y="224" font-size="9" fill="${mut}" font-family="JetBrains Mono, monospace">bond length r →</text>`;
+  if(rep)s+=`<text x="${rx(1.55)}" y="${ey(.52)-6}" font-size="9" fill="${mut}" font-family="JetBrains Mono, monospace">repulsive: atoms fly apart</text>`;
+  s+=`</svg><p>${rep?'Lower state has no bound levels → continuous emission':(vv?`Electronic jump plus vibration change v′ = ${vv[0]} → v″ = ${vv[1]}`:'Electronic + vibrational transition')} · schematic</p>`;return s;}
+
+function renderTable(){const t=$('#tbl');if(!SP||!SP.maxv){t.innerHTML='<tbody><tr><td style="color:var(--scope-muted);cursor:default">No emission yet.</td></tr></tbody>';return;}
+  const [lo,hi]=rangeLim();const fs=SP.feats.filter(f=>f.l>=lo&&f.l<=hi).sort((a,b)=>b.I-a.I).slice(0,9);
+  t.innerHTML=`<thead><tr><th>λ (nm)</th><th>Species</th><th>Transition</th><th style="text-align:right">E (eV)</th><th style="text-align:right">Rel.</th></tr></thead><tbody>`+
+   fs.map(f=>{const I=featInfo(f);const E=EM[f.em];const sp=f.type==='line'?f.em+(f.line[3]?' II':' I'):E.sp;const tr=f.type==='band'?(f.head[2].includes(',')?`(${f.head[2]}) ${(f.head[3]&&f.head[3].name||E.name).replace(/^.*? /,'')}`:E.name.replace(/^.*? /,'')):f.type==='line'?(f.line[4]||f.line[2].replace(/\s*\(.*\)/,'')):f.type==='cont'?'continuum':'Fulcher-α';
+     const sw=isVis(f.l)?`<span class="swatch" style="background:${rgbStr(wlRGB(f.l))}"></span>`:`<span class="swatch" style="background:transparent"></span>`;
+     return `<tr data-f="${f.id}" class="${f.id===ui.selFeat?'on':''}" tabindex="0"><td class="num">${sw}${f.l.toFixed(1)}</td><td>${sp}</td><td class="tr">${tr}</td><td class="num">${(HC/f.l).toFixed(2)}</td><td class="num">${Math.min(1,f.I/SP.maxv).toFixed(2)}</td></tr>`;}).join('')+'</tbody>';
+  t.querySelectorAll('tr[data-f]').forEach(r=>{const go=()=>{ui.selFeat=r.dataset.f;drawGraph();renderDetail();renderTable();};r.addEventListener('click',go);r.addEventListener('keydown',e=>{if(e.key==='Enter')go();});});}
+function renderNotes(){const ul=$('#notes');if(!SP||!SP.maxv){ul.innerHTML='<li>An empty tube gives no light. Drop some atoms in.</li>';return;}
+  const [lo,hi]=rangeLim();const by={};SP.feats.forEach(f=>{if(f.l<lo||f.l>hi)return;by[f.em]=Math.max(by[f.em]||0,f.I/SP.maxv);});
+  const top=Object.entries(by).filter(([,v])=>v>.04).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  let html=top.map(([k])=>`<li><b>${EM[k].sp||EM[k].name.split(' (')[0]}</b> · ${EM[k].why}</li>`).join('');
+  const p=ui.power;html+=`<li style="color:var(--scope-muted)">${p<.3?'Low power: mostly intact molecules, few free atoms.':p>.7?'High power: many bonds broken and ions formed, so atomic lines and ion bands grow.':'Medium power: a mix of intact molecules, fragments and free atoms.'}</li>`;ul.innerHTML=html;}
+function renderSpecies(){const ul=$('#species');if(!comps.length){ul.innerHTML='<li class="empty-note">Nothing in the tube yet. Try the preset menu, or tap C then H four times.</li>';return;}
+  const g=new Map();comps.forEach(c=>{const k=c.key;if(!g.has(k))g.set(k,{c,n:0});g.get(k).n++;});
+  const PILL={stable:['ok','Stable molecule'],radical:['warn','Radical · reactive fragment'],noble:['info','Noble gas atom'],atom:['warn','Free atom · reactive'],complete:['info','Valid Lewis structure · not in library'],open:['bad','Unfilled octet / open bond']};
+  ul.innerHTML=[...g.values()].map(({c,n})=>{const [cl,t]=PILL[c.status];const fc=c.atoms.filter(a=>atomInfo[a.id]&&atomInfo[a.id].fc).length;
+    const notes=[];if(c.lib&&c.lib.note)notes.push(c.lib.note);if(fc)notes.push('Formal charges shown on atoms.');if(c.status==='open')notes.push('Open bonds still emit: the discharge treats it as a fragment.');
+    return `<li class="sp"><span class="fml">${n>1?n+'×':''}${c.formula}</span><span class="nm">${c.name}</span><span class="meta"><span class="pill ${cl}">${t}</span>${notes.map(x=>`<span>${x}</span>`).join('')}</span></li>`;}).join('');}
+
+/* ---------------- Mystery tube ---------------- */
+function cosine(a,b){const [lo,hi]=[200,900];let ab=0,aa=0,bb=0;for(let j=idxOf(lo);j<=idxOf(hi);j+=4){ab+=a[j]*b[j];aa+=a[j]*a[j];bb+=b[j]*b[j];}return aa&&bb?ab/Math.sqrt(aa*bb):0;}
+function newMystery(){const pool=LIB.filter(l=>l.mys);let pick;const cur=new Set(comps.map(c=>c.key));let tries=0;do{pick=pool[Math.floor(Math.random()*pool.length)];tries++;}while(tries<50&&((mystery&&mystery.lib===pick)||cur.has(pick.key)));
+  mystery={lib:pick,hints:0,revealed:false,won:false};computeMystery();renderMystery();drawGraph();}
+function computeMystery(){if(!mystery)return;const s=parseSpec(mystery.lib.spec);const fake={atoms:s.els.map(e=>({el:e})),bondList:s.bonds.map(b=>({key:[s.els[b.a],s.els[b.b]].sort().join('-'),o:b.o})),counts:{},lib:mystery.lib,nh2:false};
+  s.els.forEach(e=>fake.counts[e]=(fake.counts[e]||0)+1);fake.nh2=s.els.some((e,i)=>e==='N'&&s.bonds.filter(b=>(b.a===i&&s.els[b.b]==='H')||(b.b===i&&s.els[b.a]==='H')).length>=2);
+  const r=computeSpectrum([fake],ui.power,resVal());r.maxv=maxIn(r.spec,...rangeLim());mystery.sp=r;}
+function renderMystery(){const bar=$('#mysteryBar');if(!mystery){bar.hidden=true;$('#mysteryBtn').textContent='Mystery tube';return;}
+  bar.hidden=false;$('#mysteryBtn').textContent='New mystery';
+  const score=SP&&SP.maxv?Math.round(100*cosine(SP.spec,mystery.sp.spec)):0;
+  const match=comps.length>0&&comps.every(c=>c.key===mystery.lib.key);if(match&&!mystery.won){mystery.won=true;}
+  const s=parseSpec(mystery.lib.spec);const cnt={};s.els.forEach(e=>cnt[e]=(cnt[e]||0)+1);
+  const hints=[`It has ${s.els.length} atom${s.els.length>1?'s':''}.`,`Elements: ${Object.keys(cnt).map(e=>ELEM[e].name).join(', ')}.`,`Formula: ${mystery.lib.f}.`];
+  bar.classList.toggle('win',mystery.won);
+  bar.innerHTML=mystery.won?`<span class="score">✓ ${mystery.lib.f}</span><p><b>Match!</b> The mystery gas is ${mystery.lib.name.toLowerCase()} (${mystery.lib.f}). Your spectrum and the gold trace are the same.</p><div class="acts"><button class="btn gold" id="mNew">Another mystery</button><button class="btn" id="mExit">Done</button></div>`
+   :`<span class="score" title="Spectral similarity (cosine) between your tube and the mystery tube">${score}%</span><p><b>Mystery tube loaded.</b> Its spectrum is the dashed gold trace. Build gas until your spectrum matches.${mystery.hints?' <i>'+hints.slice(0,mystery.hints).join(' ')+'</i>':''}${mystery.revealed?` <b>Answer: ${mystery.lib.f}, ${mystery.lib.name}.</b>`:''}</p>
+    <div class="acts"><button class="btn" id="mHint" ${mystery.hints>=3?'disabled':''}>Hint</button><button class="btn" id="mReveal">Reveal</button><button class="btn" id="mExit">Exit</button></div>`;
+  const on=(id,fn)=>{const b=$('#'+id);if(b)b.onclick=fn;};
+  on('mHint',()=>{mystery.hints++;renderMystery();});on('mReveal',()=>{mystery.revealed=true;renderMystery();});on('mExit',()=>{mystery=null;renderMystery();drawGraph();});on('mNew',newMystery);}
+$('#mysteryBtn').onclick=()=>{newMystery();$('#mysteryBar').scrollIntoView({block:'nearest',behavior:'smooth'});};
+
+/* ---------------- Controls ---------------- */
+const resVal=()=>{const t=+$('#res').value/100;return +(3*Math.pow(.05/3,t)).toFixed(3);};
+function syncControls(){ui.power=+$('#power').value/100;ui.res=resVal();$('#powerOut').textContent=ui.power<.3?'Low':ui.power>.7?'High':'Medium';$('#resOut').textContent=ui.res<.1?ui.res.toFixed(2)+' nm':ui.res.toFixed(1)+' nm';}
+$('#power').addEventListener('input',()=>{syncControls();recompute();});
+$('#res').addEventListener('input',()=>{syncControls();recompute();});
+function setRange(r){ui.range=r;$('#rangeFull').setAttribute('aria-pressed',r==='full');$('#rangeVis').setAttribute('aria-pressed',r==='vis');recompute();}
+$('#rangeFull').onclick=()=>setRange('full');$('#rangeVis').onclick=()=>setRange('vis');
+$('#refChk').onchange=e=>{ui.ref=e.target.checked;drawGraph();};$('#lblChk').onchange=e=>{ui.labels=e.target.checked;drawGraph();};
+$('#undoBtn').onclick=undo;$('#fillBtn').onclick=fillH;$('#tidyBtn').onclick=()=>{if(!atoms.length)return;pushHist();layout();update();};$('#delBtn').onclick=removeAtom;$('#clearBtn').onclick=clearAll;
+$('#palette').innerHTML=ORDER.map(e=>{const E=ELEM[e];return `<button class="el-btn" data-el="${e}" aria-label="Add ${E.name}"><span class="ball" style="background:${E.color};color:${E.text}">${e}</span><span class="val">${E.v?E.v+' bond'+(E.v>1?'s':''):'no bonds'}</span></button>`;}).join('');
+$('#palette').addEventListener('click',e=>{const b=e.target.closest('[data-el]');if(b)addAtom(b.dataset.el);});
+(()=>{const sel=$('#preset');let h='<option value="">Load a preset…</option>';for(const g of Object.keys(GROUPS)){h+=`<optgroup label="${GROUPS[g]}">`+LIB.filter(l=>l.grp===g).map(l=>`<option value="m:${l.f}">${l.f} · ${l.name}</option>`).join('')+'</optgroup>';}
+  h+='<optgroup label="Gas mixtures">'+MIXES.map((m,i)=>`<option value="x:${i}">${m[0]}</option>`).join('')+'</optgroup>';sel.innerHTML=h;
+  sel.onchange=()=>{const v=sel.value;if(!v)return;if(v[0]==='m')loadMolecules([[v.slice(2),1]]);else loadMolecules(MIXES[+v.slice(2)][1]);sel.value='';};})();
+
+/* ---------------- Update pipeline ---------------- */
+function recompute(){
+  SP=computeSpectrum(comps,ui.power,ui.res);SP.maxv=maxIn(SP.spec,...rangeLim());SP.elements={};comps.forEach(c=>Object.keys(c.counts).forEach(e=>SP.elements[e]=1));
+  if(mystery)computeMystery();
+  drawStrip($('#strip'));drawStrip($('#mini'));drawGraph();drawTube();renderDetail();renderTable();renderNotes();if(mystery)renderMystery();}
+function update(){analyze();drawMol();renderSpecies();recompute();save();}
+
+function init(){resizeSvg();syncControls();let ok=false;
+  try{const s=JSON.parse(localStorage.getItem('dtl-v1')||'null');if(s&&Array.isArray(s.atoms)&&s.atoms.length){atoms=s.atoms;bonds=s.bonds;nextId=s.nextId;ok=true;}}catch(e){}
+  if(ok){analyze();fit();update();}else{loadMolecules([['N₂',1]]);hist=[];}
+  let rt=0;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{resizeSvg();fit();drawMol();drawStrip($('#strip'));drawStrip($('#mini'));drawGraph();},120);});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{drawGraph();});}
+init();
+})();
+</script>
+</body>
+</html>
